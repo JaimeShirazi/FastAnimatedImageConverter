@@ -75,6 +75,7 @@ namespace FAIC
             videoContainingPanel = new Panel();
             videoPreviewHost = new ElementHost();
             conversionPanel = new TableLayoutPanel();
+            commandLinePaddingPanel = new Panel();
             actionsPanel = new Panel();
             tooltips = new ToolTip(components);
             ((System.ComponentModel.ISupportInitialize)qualitySlider).BeginInit();
@@ -100,6 +101,7 @@ namespace FAIC
             ((System.ComponentModel.ISupportInitialize)playhead).BeginInit();
             videoContainingPanel.SuspendLayout();
             conversionPanel.SuspendLayout();
+            commandLinePaddingPanel.SuspendLayout();
             actionsPanel.SuspendLayout();
             SuspendLayout();
             // 
@@ -171,10 +173,13 @@ namespace FAIC
             // commandLineOutput
             // 
             commandLineOutput.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            commandLineOutput.Location = new Point(3, 452);
+            commandLineOutput.BackColor = SystemColors.Window;
+            commandLineOutput.BorderStyle = BorderStyle.None;
+            commandLineOutput.Font = new Font("Consolas", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            commandLineOutput.Location = new Point(3, 3);
             commandLineOutput.Name = "commandLineOutput";
             commandLineOutput.ReadOnly = true;
-            commandLineOutput.Size = new Size(406, 185);
+            commandLineOutput.Size = new Size(400, 179);
             commandLineOutput.TabIndex = 5;
             commandLineOutput.Text = "";
             tooltips.SetToolTip(commandLineOutput, "Console output from the converter tools.");
@@ -664,7 +669,7 @@ namespace FAIC
             conversionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             conversionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 20F));
             conversionPanel.Controls.Add(settingsGroupBox, 0, 0);
-            conversionPanel.Controls.Add(commandLineOutput, 0, 1);
+            conversionPanel.Controls.Add(commandLinePaddingPanel, 0, 1);
             conversionPanel.Dock = DockStyle.Fill;
             conversionPanel.Location = new Point(0, 0);
             conversionPanel.Name = "conversionPanel";
@@ -676,6 +681,16 @@ namespace FAIC
             conversionPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             conversionPanel.Size = new Size(412, 640);
             conversionPanel.TabIndex = 7;
+            // 
+            // commandLinePaddingPanel
+            // 
+            commandLinePaddingPanel.BackColor = SystemColors.Window;
+            commandLinePaddingPanel.Controls.Add(commandLineOutput);
+            commandLinePaddingPanel.Dock = DockStyle.Fill;
+            commandLinePaddingPanel.Location = new Point(3, 452);
+            commandLinePaddingPanel.Name = "commandLinePaddingPanel";
+            commandLinePaddingPanel.Size = new Size(406, 185);
+            commandLinePaddingPanel.TabIndex = 9;
             // 
             // actionsPanel
             // 
@@ -730,6 +745,7 @@ namespace FAIC
             videoContainingPanel.ResumeLayout(false);
             conversionPanel.ResumeLayout(false);
             conversionPanel.PerformLayout();
+            commandLinePaddingPanel.ResumeLayout(false);
             actionsPanel.ResumeLayout(false);
             ResumeLayout(false);
         }
@@ -780,5 +796,6 @@ namespace FAIC
         private TableLayoutPanel samplingLayoutPanel;
         private RadioButton sampleBestRadio;
         private RadioButton sampleFastRadio;
+        private Panel commandLinePaddingPanel;
     }
 }

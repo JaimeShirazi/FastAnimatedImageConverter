@@ -65,94 +65,23 @@ namespace FAIC
             fpsSetting.SelectedIndex = 0;
             repeatValue.Value = -1;
         }
-
-        const int ABOUT_SYSMENU_ID = 0x1FFF; // any ID > 0xF000
-        protected override void OnHandleCreated(EventArgs e)
+        
+        private void Main_Load(object sender, EventArgs e)
         {
-            base.OnHandleCreated(e);
 
-            IntPtr sysMenu = Native.GetSystemMenu(Handle, false);
-
-            Native.AppendMenu(sysMenu, Native.MF_SEPARATOR, 0, "");
-            Native.AppendMenu(sysMenu, Native.MF_STRING, ABOUT_SYSMENU_ID, "About\tCtrl+F1");
-
-            UpdateQualityLabel();
         }
-        protected override bool ProcessCmdKey(
-            ref Message msg,
-            Keys keyData)
+
+        private void firstFrameInput_ValueChanged(object sender, EventArgs e)
         {
-            if (keyData == (Keys.Control | Keys.F1))
-            {
-                using (var about = new About())
-                {
-                    about.ShowDialog(this);
-                }
-                return true;
-            }
 
-            return base.ProcessCmdKey(ref msg, keyData);
         }
-        protected override void WndProc(ref Message m)
+
+        private void mainSplit_SplitterMoved(object sender, SplitterEventArgs e)
         {
-            if (m.Msg == Native.WM_SYSCOMMAND)
-            {
-                if ((int)m.WParam == ABOUT_SYSMENU_ID)
-                {
-                    using (var about = new About())
-                    {
-                        about.ShowDialog(this);
-                    }
-                    return;
-                }
-            }
 
-            base.WndProc(ref m);
         }
-        #region Console
-        public void Write(string text) => AppendLog(text);
-        const int MAX_LINES = 2000;
-        void AppendLog(string msg)
-        {
-            if (InvokeRequired)
-            {
-                BeginInvoke(() => AppendLog(msg));
-                return;
-            }
 
-            commandLineOutput.AppendText(msg + Environment.NewLine);
-
-            if (commandLineOutput.Lines.Length > MAX_LINES)
-            {
-                var lines = commandLineOutput.Lines.Skip(commandLineOutput.Lines.Length - MAX_LINES).ToArray();
-                commandLineOutput.Lines = lines;
-            }
-        }
-        #endregion
-        // Handle the DragDrop event
-        private void OnDragDrop(object sender, DragEventArgs e)
-        {
-            // Retrieve the dropped data as an array of strings (file paths)
-            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop, false);
-
-            InputPath = files[0];
-            AppendLog($"Set input file to file at path \"{InputPath}\"");
-        }
-        // Handle the DragEnter event
-        private void OnDragEnter(object sender, DragEventArgs e)
-        {
-            // Check if the data being dragged is in the FileDrop format
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                // If it is, show the 'copy' cursor (or another effect)
-                e.Effect = DragDropEffects.Copy;
-            }
-            else
-            {
-                // Otherwise, show no effect, indicating drop is not allowed
-                e.Effect = DragDropEffects.None;
-            }
-        }
+        #region Video preview panel
         #region Playhead management
         private void OnNewVideoInfo(ProbeMediaInfo info)
         {
@@ -197,29 +126,6 @@ namespace FAIC
             videoPreview.Seek(t);
         }
         #endregion
-        private void qualitySlider_Scroll(object sender, EventArgs e)
-        {
-            UpdateQualityLabel();
-        }
-        private void UpdateQualityLabel()
-        {
-            qualityLabel.Text = $"Quality ({qualitySlider.Value}%)";
-        }
-
-        private void Main_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void firstFrameInput_ValueChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void mainSplit_SplitterMoved(object sender, SplitterEventArgs e)
-        {
-
-        }
         private void playButton_Click(object sender, EventArgs e)
         {
             if (videoPreview.IsPlaying)
@@ -256,7 +162,146 @@ namespace FAIC
         {
             lastFrameInput.Value = Math.Round((decimal)videoPreview.Time, 3);
         }
+        #endregion
+        #region Settings and console panel
+        #region Quality setting
+        private void qualitySlider_Scroll(object sender, EventArgs e)
+        {
+            UpdateQualityLabel();
+        }
+        private void UpdateQualityLabel()
+        {
+            qualityLabel.Text = $"Quality ({qualitySlider.Value}%)";
+        }
+        #endregion
+        #region Size setting
+        private bool isResizeUpdate = false;
+        private bool IsMediaWidthLarger() => videoPreview.Latest != null ? videoPreview.Latest.Width > videoPreview.Latest.Height : true;
+        private int GetMediaLargestDimension() => videoPreview.Latest != null ? Math.Max(videoPreview.Latest.Width, videoPreview.Latest.Height) : 0;
+        private int GetMediaSmallestDimension() => videoPreview.Latest != null ? Math.Min(videoPreview.Latest.Width, videoPreview.Latest.Height) : 0;
+        private void resizeSlider_Scroll(object sender, EventArgs e)
+        {
+            if (isResizeUpdate) return; isResizeUpdate = true;
 
+            int largestDimension = GetMediaLargestDimension();
+            resizeDimensionValue.Value = Math.Clamp(
+                Math.Round(largestDimension * (resizeSlider.Value / (decimal)100)),
+                resizeDimensionValue.Minimum,
+                resizeDimensionValue.Maximum
+                );
+
+            OnResizeChange();
+
+            isResizeUpdate = false;
+        }
+        private void resizeDimensionValue_ValueChanged(object sender, EventArgs e)
+        {
+            if (isResizeUpdate) return; isResizeUpdate = true;
+
+            resizeSlider.Value = (int)Math.Clamp(
+                Math.Round((resizeDimensionValue.Value / GetMediaLargestDimension()) * 100),
+                resizeSlider.Minimum,
+                resizeSlider.Maximum
+                );
+
+            OnResizeChange();
+
+            isResizeUpdate = false;
+        }
+        private void OnResizeChange()
+        {
+            decimal percentageSize = Math.Max(
+                (resizeDimensionValue.Value / GetMediaLargestDimension()) * (decimal)100.0,
+                (decimal)0.01
+                );
+
+            samplingLayoutPanel.Enabled = percentageSize != 100;
+
+            string formattedPercentage = percentageSize switch
+            {
+                < 10 => percentageSize.ToString("0.00"),
+                < 100 => percentageSize.ToString("0.0"),
+                < 1000 => percentageSize.ToString("0"),
+                _ => ">999"
+            };
+
+            resizeLabel.Text = $"Resize ({formattedPercentage}%)";
+        }
+        #endregion
+        #region Speed setting
+        public static readonly double[] Speeds =
+        [
+            0.1, 0.25, 0.33333333333333333, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5, 6, 8, 12, 16
+        ];
+        private void speedSlider_Scroll(object sender, EventArgs e)
+        {
+            if (!automaticallyChangedFrameRateModeToNearest
+                && fpsSetting.SelectedIndex == 0)
+            {
+                automaticallyChangedFrameRateModeToNearest = true;
+                fpsSetting.SelectedIndex = 1;
+                MatchFrameRateToMedia(factorSpeed: false);
+            }
+            speedLabel.Text = $"Speed ({Math.Round(Speeds[speedSlider.Value], 2)}x)";
+            if (fpsSetting.SelectedIndex == 0)
+            {
+                MatchFrameRateToMedia();
+            }
+        }
+        #endregion
+        #region Frame rate setting
+        public const int FRAME_RATE_PRECISION = 3;
+        private decimal GetSourceMediaFrameRate() => videoPreview.Latest != null ? (decimal)videoPreview.Latest.EstimatedFrameRate : 0;
+        private void MatchFrameRateToMedia(bool factorSpeed = true)
+        {
+            decimal roundedFPS = Math.Round(GetSourceMediaFrameRate() * (factorSpeed ? (decimal)Speeds[speedSlider.Value] : 1), FRAME_RATE_PRECISION);
+            if (fpsValue.Enabled)
+            {
+                fpsValue.Maximum = Math.Max(roundedFPS, 1000);
+                fpsValue.Value = Math.Min(roundedFPS, 1000);
+            }
+            else
+            {
+                fpsValue.Maximum = roundedFPS;
+                fpsValue.Value = roundedFPS;
+            }
+        }
+        private void fpsSetting_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (frameRateLastModeBuffer != fpsSetting.SelectedIndex)
+            {
+                frameRateLastModeBuffer = fpsSetting.SelectedIndex;
+                automaticallyChangedFrameRateModeToNearest = true; //Override this behaviour if the user touched this control
+            }
+            bool wasEnabled = fpsValue.Enabled;
+            fpsValue.Enabled = fpsSetting.SelectedIndex != 0;
+            if (fpsValue.Enabled != wasEnabled)
+            {
+                MatchFrameRateToMedia();
+            }
+        }
+        #endregion
+        #region Console
+        public void Write(string text) => AppendLog(text);
+        const int MAX_LINES = 2000;
+        void AppendLog(string msg)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(() => AppendLog(msg));
+                return;
+            }
+
+            commandLineOutput.AppendText(msg + Environment.NewLine);
+
+            if (commandLineOutput.Lines.Length > MAX_LINES)
+            {
+                var lines = commandLineOutput.Lines.Skip(commandLineOutput.Lines.Length - MAX_LINES).ToArray();
+                commandLineOutput.Lines = lines;
+            }
+        }
+        #endregion
+        #endregion
         #region Encoding
         private CancellationTokenSource? _encodeCTS;
         private Task? _encodeTask;
@@ -390,7 +435,8 @@ namespace FAIC
                     case "jxl":
                         await Program.EncodeJXL(settings, token);
                         break;
-                    case "apng": case "png":
+                    case "apng":
+                    case "png":
                         await Program.EncodeAPNG(settings, token);
                         break;
                     case "webp":
@@ -419,108 +465,67 @@ namespace FAIC
             cancelButton.Enabled = false;
         }
         #endregion
-        #region Frame rate
-        public const int FRAME_RATE_PRECISION = 3;
-        private decimal GetSourceMediaFrameRate() => videoPreview.Latest != null ? (decimal)videoPreview.Latest.EstimatedFrameRate : 0;
-        private void MatchFrameRateToMedia(bool factorSpeed = true)
+
+        #region Window lifetime management
+        const int ABOUT_SYSMENU_ID = 0x1FFF; // any ID > 0xF000
+        protected override void OnHandleCreated(EventArgs e)
         {
-            decimal roundedFPS = Math.Round(GetSourceMediaFrameRate() * (factorSpeed ? (decimal)Speeds[speedSlider.Value] : 1), FRAME_RATE_PRECISION);
-            if (fpsValue.Enabled)
+            base.OnHandleCreated(e);
+
+            IntPtr sysMenu = Native.GetSystemMenu(Handle, false);
+
+            Native.AppendMenu(sysMenu, Native.MF_SEPARATOR, 0, "");
+            Native.AppendMenu(sysMenu, Native.MF_STRING, ABOUT_SYSMENU_ID, "About\tCtrl+F1");
+
+            UpdateQualityLabel();
+        }
+        protected override bool ProcessCmdKey(
+            ref Message msg,
+            Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.F1))
             {
-                fpsValue.Maximum = Math.Max(roundedFPS, 1000);
-                fpsValue.Value = Math.Min(roundedFPS, 1000);
+                using (var about = new About())
+                {
+                    about.ShowDialog(this);
+                }
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == Native.WM_SYSCOMMAND)
+            {
+                if ((int)m.WParam == ABOUT_SYSMENU_ID)
+                {
+                    using (var about = new About())
+                    {
+                        about.ShowDialog(this);
+                    }
+                    return;
+                }
+            }
+
+            base.WndProc(ref m);
+        }
+        private void OnDragDrop(object sender, DragEventArgs e)
+        {
+            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop, false);
+
+            InputPath = files[0];
+            AppendLog($"Set input file to file at path \"{InputPath}\"");
+        }
+        private void OnDragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
             }
             else
             {
-                fpsValue.Maximum = roundedFPS;
-                fpsValue.Value = roundedFPS;
-            }
-        }
-        private void fpsSetting_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (frameRateLastModeBuffer != fpsSetting.SelectedIndex)
-            {
-                frameRateLastModeBuffer = fpsSetting.SelectedIndex;
-                automaticallyChangedFrameRateModeToNearest = true; //Override this behaviour if the user touched this control
-            }
-            bool wasEnabled = fpsValue.Enabled;
-            fpsValue.Enabled = fpsSetting.SelectedIndex != 0;
-            if (fpsValue.Enabled != wasEnabled)
-            {
-                MatchFrameRateToMedia();
-            }
-        }
-        #endregion
-        private bool isResizeUpdate = false;
-        private bool IsMediaWidthLarger() => videoPreview.Latest != null ? videoPreview.Latest.Width > videoPreview.Latest.Height : true;
-        private int GetMediaLargestDimension() => videoPreview.Latest != null ? Math.Max(videoPreview.Latest.Width, videoPreview.Latest.Height) : 0;
-        private int GetMediaSmallestDimension() => videoPreview.Latest != null ? Math.Min(videoPreview.Latest.Width, videoPreview.Latest.Height) : 0;
-        private void resizeSlider_Scroll(object sender, EventArgs e)
-        {
-            if (isResizeUpdate) return; isResizeUpdate = true;
-
-            int largestDimension = GetMediaLargestDimension();
-            resizeDimensionValue.Value = Math.Clamp(
-                Math.Round(largestDimension * (resizeSlider.Value / (decimal)100)),
-                resizeDimensionValue.Minimum,
-                resizeDimensionValue.Maximum
-                );
-
-            OnResizeChange();
-
-            isResizeUpdate = false;
-        }
-        private void resizeDimensionValue_ValueChanged(object sender, EventArgs e)
-        {
-            if (isResizeUpdate) return; isResizeUpdate = true;
-
-            resizeSlider.Value = (int)Math.Clamp(
-                Math.Round((resizeDimensionValue.Value / GetMediaLargestDimension()) * 100),
-                resizeSlider.Minimum,
-                resizeSlider.Maximum
-                );
-
-            OnResizeChange();
-
-            isResizeUpdate = false;
-        }
-        private void OnResizeChange()
-        {
-            decimal percentageSize = Math.Max(
-                (resizeDimensionValue.Value / GetMediaLargestDimension()) * (decimal)100.0,
-                (decimal)0.01
-                );
-
-            samplingLayoutPanel.Enabled = percentageSize != 100;
-
-            string formattedPercentage = percentageSize switch
-            {
-                < 10 => percentageSize.ToString("0.00"),
-                < 100 => percentageSize.ToString("0.0"),
-                < 1000 => percentageSize.ToString("0"),
-                _ => ">999"
-            };
-
-            resizeLabel.Text = $"Resize ({formattedPercentage}%)";
-        }
-
-        public static readonly double[] Speeds =
-        [
-            0.1, 0.25, 0.33333333333333333, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5, 6, 8, 12, 16
-        ];
-        private void speedSlider_Scroll(object sender, EventArgs e)
-        {
-            if (!automaticallyChangedFrameRateModeToNearest
-                && fpsSetting.SelectedIndex == 0)
-            {
-                automaticallyChangedFrameRateModeToNearest = true;
-                fpsSetting.SelectedIndex = 1;
-                MatchFrameRateToMedia(factorSpeed: false);
-            }
-            speedLabel.Text = $"Speed ({Math.Round(Speeds[speedSlider.Value], 2)}x)";
-            if (fpsSetting.SelectedIndex == 0)
-            {
-                MatchFrameRateToMedia();
+                e.Effect = DragDropEffects.None;
             }
         }
         protected override async void OnFormClosing(FormClosingEventArgs e)
@@ -541,5 +546,6 @@ namespace FAIC
 
             MFShutdown().CheckError();
         }
+        #endregion
     }
 }
