@@ -17,7 +17,7 @@ namespace FAIC
                     inputPath = value;
                     if (videoPreview != null)
                     {
-                        videoPreview.Open(inputPath, AppendLog, OnNewVideoInfo);
+                        videoPreview.Open(inputPath, OnNewVideoInfo);
                     }
                 }
                 else
@@ -48,15 +48,17 @@ namespace FAIC
                 throw new InvalidOperationException("Failed to start Vortice.MediaFoundation.");
 
             InitializeComponent();
+            DragDrop += OnDragDrop;
+            DragEnter += OnDragEnter;
             videoPreview = new();
             videoPreviewHost.Child = videoPreview;
             videoPreview.OnNewTime += VideoPreview_OnNewTime;
             videoPreview.OnStateChange += VideoPreview_OnStateChanged;
+            videoPreview.OnSupportChange += VideoPreview_OnSupportChange;
+
+            UpdatePlayPanelState();
+
             InputPath = inputPath;
-
-            DragDrop += OnDragDrop;
-            DragEnter += OnDragEnter;
-
             if (string.IsNullOrEmpty(inputPath))
             {
                 AppendLog("Drag a media file onto the window to convert it!");
@@ -65,7 +67,7 @@ namespace FAIC
             fpsSetting.SelectedIndex = 0;
             repeatValue.Value = -1;
         }
-        
+
         private void Main_Load(object sender, EventArgs e)
         {
 
@@ -133,31 +135,57 @@ namespace FAIC
             else
                 videoPreview.Play();
 
-            if (videoPreview.IsPlaying)
-            {
-                playButton.Text = "Pause";
-                playhead.Enabled = false;
-            }
-            else
-            {
-                playButton.Text = "Play";
-                playhead.Enabled = true;
-            }
+            UpdatePlayPanelState();
         }
         private void seekButton_Click(object sender, EventArgs e)
         {
             videoPreview?.Step();
+            UpdatePlayPanelState();
+        }
+        private void UpdatePlayPanelState()
+        {
+            mainSplit.Panel1Collapsed = !videoPreview.CanReadMedia;
+            playhead.Enabled = videoPreview.CanReadMedia && !videoPreview.IsPlaying;
+            playButton.Enabled = videoPreview.MediaPlayerSupported;
+            seekButton.Enabled = videoPreview.SourceReaderSupported;
+            trimStartHereButton.Enabled = videoPreview.CanReadMedia;
+            trimEndHereButton.Enabled = videoPreview.CanReadMedia;
+            if (videoPreview.MediaPlayerSupported)
+            {
+                if (videoPreview.IsPlaying)
+                {
+                    playButton.Text = "Pause";
+                }
+                else
+                {
+                    playButton.Text = "Play";
+                }
+            }
+            else
+            {
+                playButton.Text = "Play/Pause Unsupported";
+            }
+            if (videoPreview.SourceReaderSupported)
+            {
+                seekButton.Text = "Step Next Frame";
+            }
+            else
+            {
+                seekButton.Text = "Step Next Frame Unsupported";
+            }
         }
         private void VideoPreview_OnStateChanged()
         {
-            //I don't remember why I made this. Playhead sync? TODO double check
+            UpdatePlayPanelState();
         }
-
+        private void VideoPreview_OnSupportChange()
+        {
+            UpdatePlayPanelState();
+        }
         private void trimStartHereButton_Click(object sender, EventArgs e)
         {
             firstFrameInput.Value = Math.Round((decimal)videoPreview.Time, 3);
         }
-
         private void trimEndHereButton_Click(object sender, EventArgs e)
         {
             lastFrameInput.Value = Math.Round((decimal)videoPreview.Time, 3);

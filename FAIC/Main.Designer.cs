@@ -514,7 +514,7 @@ namespace FAIC
             sampleBestRadio.Size = new Size(70, 29);
             sampleBestRadio.TabIndex = 5;
             sampleBestRadio.Text = "Best";
-            tooltips.SetToolTip(sampleBestRadio, "Use Lanczos for downsampling, and Spline36 for upsampling. Best quality, but slower.");
+            tooltips.SetToolTip(sampleBestRadio, "Use Lanczos for resizing to smaller, and Spline36 for resizing to larger. Best quality, but slower.");
             sampleBestRadio.UseVisualStyleBackColor = true;
             // 
             // sampleFastRadio
@@ -527,7 +527,7 @@ namespace FAIC
             sampleFastRadio.TabIndex = 4;
             sampleFastRadio.TabStop = true;
             sampleFastRadio.Text = "Fast";
-            tooltips.SetToolTip(sampleFastRadio, "Use billinear for resampling. Fast, but can lead to aliasing and shimmer in motion at lower resolutions, and worse contrast at higher resolutions.");
+            tooltips.SetToolTip(sampleFastRadio, "Use billinear for resizing. Fast, but can lead to aliasing and shimmer in motion at lower resolutions, and worse contrast at higher resolutions.");
             sampleFastRadio.UseVisualStyleBackColor = true;
             // 
             // mainSplit

@@ -14,6 +14,17 @@
 	<FileVersion>1.0.$(Year)$(Month)$(Day).$(Time)</FileVersion>
     <InformationalVersion>1.0.$(Year)$(Month)$(Day).$(Time)</InformationalVersion>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <ApplicationIcon>Logo.ico</ApplicationIcon>
+    <PlatformTarget>x64</PlatformTarget>
+    <Authors>Jaime Shirazi</Authors>
+    <Product>$(Title)</Product>
+    <Description>Create many different types of animated image files with an approachable, easy-to-use interface.</Description>
+    <Copyright>Jaime Shirazi Games</Copyright>
+    <PackageIcon>Logo_128.png</PackageIcon>
+    <RepositoryUrl>https://github.com/JaimeShirazi/FastAnimatedImageConverter</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'" />
@@ -22,9 +33,11 @@
 
   <ItemGroup>
     <None Remove="avifenc.exe" />
-    <None Remove="External Licenses\ffmpeg.LICENSE.txt" />
-    <None Remove="External Licenses\gifski.LICENSE.txt" />
-    <None Remove="External Licenses\libavif.LICENSE.txt" />
+    <None Remove="Docs\ffmpeg.LICENSE.txt" />
+    <None Remove="Docs\gifski.LICENSE.txt" />
+    <None Remove="Docs\libavif.LICENSE.txt" />
+    <None Remove="Docs\media-autobuild_suite config\ffmpeg_options.txt" />
+    <None Remove="Docs\media-autobuild_suite config\media-autobuild_suite.ini.txt" />
     <None Remove="ffmpeg.exe" />
     <None Remove="ffprobe.exe" />
     <None Remove="gifski.exe" />
@@ -34,19 +47,25 @@
     <Content Include="avifenc.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="External Licenses\ffmpeg.LICENSE.txt">
+    <Content Include="Docs\ffmpeg.LICENSE.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="External Licenses\gifski.LICENSE.txt">
+    <Content Include="Docs\gifski.LICENSE.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="External Licenses\libavif.LICENSE.txt">
+    <Content Include="Docs\libavif.LICENSE.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-	<Content Include="$(SolutionDir)..\LICENSE">
-	    <Link>External Licenses\LICENSE.txt</Link>
+	<Content Include="$(MSBuildProjectDirectory)\..\LICENSE">
+	    <Link>Docs\LICENSE.txt</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+	<Content Include="Docs\media-autobuild_suite config\ffmpeg_options.txt">
+	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</Content>
+	<Content Include="Docs\media-autobuild_suite config\media-autobuild_suite.ini.txt">
+	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</Content>
     <Content Include="ffmpeg.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -56,6 +75,14 @@
     <Content Include="gifski.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Logo.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -83,6 +110,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Logo_128.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
     <None Update="Properties\Settings.settings">
       <Generator>PublicSettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

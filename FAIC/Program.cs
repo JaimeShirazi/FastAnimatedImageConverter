@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-using System.Windows.Controls;
 
 namespace FAIC
 {
@@ -34,7 +33,7 @@ namespace FAIC
             };
 
             string arguments = settings.GetFFmpegArguments() +
-                        "-threads 0 -pix_fmt yuv444p " +
+                        "-threads 0 -pix_fmt yuva444p " +
                         "-f yuv4mpegpipe -";
 
             TryOutput("ffmpeg.exe " + arguments);
@@ -191,7 +190,7 @@ namespace FAIC
         }
         public static async Task EncodeWebP(EncodeSettings settings, CancellationToken token)
         {
-            string arguments = "-c:v libwebp_anim ";
+            string arguments = "-c:v libwebp ";
 
             if (settings.Quality >= 100)
             {
@@ -208,7 +207,9 @@ namespace FAIC
         }
         public static async Task EncodeJXL(EncodeSettings settings, CancellationToken token)
         {
-            string arguments = "-c:v libjxl ";
+            if (settings.Repeats >= 0) TryOutput("WARNING: Repeat count not currently supported for JXL. Output file will loop indefinitely.");
+
+            string arguments = "-c:v libjxl_anim ";
 
             double q = Math.Clamp(settings.Quality, 0, 100) / 100.0;
             const double MAX_DISTANCE = 15.0;
@@ -218,6 +219,8 @@ namespace FAIC
                 : 7;
 
             arguments += $"-distance {jxlDistance} -effort {jxlEffort} ";
+
+            arguments += "-f rawvideo ";
 
             await EncodeWithFFmpeg(settings, arguments, token);
         }

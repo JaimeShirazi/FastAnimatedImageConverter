@@ -2,7 +2,6 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.Media3D;
 using Vortice.MediaFoundation;
 using static Vortice.MediaFoundation.MediaFactory;
 
@@ -12,6 +11,7 @@ namespace FAIC.Types.Forms
     {
         public event Action<double> OnNewTime = (_) => { };
         public event Action OnStateChange = () => { };
+        public event Action OnSupportChange = () => { };
         public double Time => mode == PreviewMode.MediaPlayerPlaying ? player.Position.TotalSeconds : CachedTime;
         public ProbeMediaInfo Latest => latest;
         private ProbeMediaInfo latest;
@@ -49,6 +49,33 @@ namespace FAIC.Types.Forms
 
         MediaPlayer player = new();
         IMFSourceReader reader;
+        public bool CanReadMedia => mediaPlayerSupported || sourceReaderSupported;
+        public bool MediaPlayerSupported
+        {
+            get => mediaPlayerSupported;
+            private set
+            {
+                if (mediaPlayerSupported != value)
+                {
+                    mediaPlayerSupported = value;
+                    OnSupportChange.Invoke();
+                }
+            }
+        }
+        private bool mediaPlayerSupported;
+        public bool SourceReaderSupported
+        {
+            get => sourceReaderSupported;
+            private set
+            {
+                if (sourceReaderSupported != value)
+                {
+                    sourceReaderSupported = value;
+                    OnSupportChange.Invoke();
+                }
+            }
+        }
+        private bool sourceReaderSupported;
 
         DrawingGroup drawingGroup = new();
         VideoDrawing videoDrawing = new();
@@ -58,7 +85,7 @@ namespace FAIC.Types.Forms
 
         System.Drawing.Size videoSize;
 
-        private BitmapSource? readerFrame = null;
+        private WriteableBitmap? readerFrame = null;
         private SourceReaderSampleData readerFrameData;
 
         public VideoPreview()
@@ -75,26 +102,23 @@ namespace FAIC.Types.Forms
         {
             base.OnRender(dc);
 
-            int drawSourceWidth = mode == PreviewMode.SourceReader
-                ? readerFrameData.Width
-                : videoSize.Width;
+            Rect GetOutputRect(int sourceWidth, int sourceHeight)
+            {
+                if (sourceWidth <= 0 || sourceHeight <= 0)
+                    return Rect.Empty;
 
-            int drawSourceHeight = mode == PreviewMode.SourceReader
-                ? readerFrameData.Height
-                : videoSize.Height;
+                double sx = RenderSize.Width / sourceWidth;
+                double sy = RenderSize.Height / sourceHeight;
+                double scale = Math.Min(sx, sy);
 
-            if (drawSourceWidth <= 0 || drawSourceHeight <= 0)
-                return;
+                double drawW = sourceWidth * scale;
+                double drawH = sourceHeight * scale;
 
-            double sx = RenderSize.Width / drawSourceWidth;
-            double sy = RenderSize.Height / drawSourceHeight;
-            double scale = Math.Min(sx, sy);
+                double offsetX = (RenderSize.Width - drawW) / 2;
+                double offsetY = (RenderSize.Height - drawH) / 2;
 
-            double drawW = drawSourceWidth * scale;
-            double drawH = drawSourceHeight * scale;
-
-            double offsetX = (RenderSize.Width - drawW) / 2;
-            double offsetY = (RenderSize.Height - drawH) / 2;
+                return new Rect(offsetX, offsetY, drawW, drawH);
+            }
 
             //Treating it like an update loop here
             if (mode == PreviewMode.MediaPlayerPlaying)
@@ -102,23 +126,170 @@ namespace FAIC.Types.Forms
                 CachedTime = player.Position.TotalSeconds;
             }
 
-            switch (mode)
+            if (mode == PreviewMode.MediaPlayerPaused || mode == PreviewMode.MediaPlayerPlaying
+                && MediaPlayerSupported)
             {
-                case PreviewMode.MediaPlayerPaused:
-                case PreviewMode.MediaPlayerPlaying:
-                    videoDrawing.Rect = new Rect(offsetX, offsetY, drawW, drawH);
-                    dc.DrawDrawing(videoDrawing);
-                    break;
-                case PreviewMode.SourceReader:
-                    if (readerFrame != null)
-                    {
-                        dc.DrawImage(readerFrame, new Rect(offsetX, offsetY, drawW, drawH));
-                    }
-                    break;
-                default:
-                    break;
+                videoDrawing.Rect = GetOutputRect(videoSize.Width, videoSize.Height);
+                dc.DrawDrawing(videoDrawing);
+            }
+            else if (SourceReaderSupported && mode != PreviewMode.None)
+            {
+                if (readerFrame != null)
+                {
+                    dc.DrawImage(readerFrame, GetOutputRect(readerFrameData.Width, readerFrameData.Height));
+                }
             }
         }
+        
+        public void Open(string path, Action<ProbeMediaInfo> onVideoInfoRead)
+        {
+            if (getInfoTask is { IsCompleted: false })
+            {
+                getInfoCTS?.Cancel();
+            }
+
+            MediaPlayerSupported = false;
+            player.Open(new Uri(path));
+            player.MediaOpened += (_, __) =>
+            {
+                MediaPlayerSupported = true;
+
+                videoSize = new System.Drawing.Size(
+                    player.NaturalVideoWidth,
+                    player.NaturalVideoHeight
+                );
+
+                player.Play();
+                player.Pause();
+                Mode = PreviewMode.MediaPlayerPaused;
+                InvalidateVisual();
+            };
+
+            SourceReaderSupported = true;
+            if (reader != null)
+            {
+                reader.Dispose();
+                reader = null;
+            }
+            IMFAttributes attributes = MFCreateAttributes(1);
+            IMFMediaType outType = MFCreateMediaType();
+            attributes.Set(SourceReaderAttributeKeys.EnableVideoProcessing, 1);
+            outType.Set(MediaTypeAttributeKeys.MajorType, MediaTypeGuids.Video);
+            outType.Set(MediaTypeAttributeKeys.Subtype, VideoFormatGuids.Rgb32);
+            try
+            {
+                reader = MFCreateSourceReaderFromURL(path, attributes);
+                reader.SetStreamSelection(SourceReaderIndex.AllStreams, false);
+                reader.SetStreamSelection(SourceReaderIndex.FirstVideoStream, true);
+                reader.SetCurrentMediaType(SourceReaderIndex.FirstVideoStream, outType);
+                readerFrameData = new(reader);
+            }
+            catch
+            {
+                SourceReaderSupported = false;
+            }
+            finally
+            {
+                attributes.Dispose();
+                outType.Dispose();
+            }
+
+            getInfoCTS = new CancellationTokenSource();
+            getInfoTask = Program.GetMediaInfo(path, getInfoCTS.Token, (info) =>
+            {
+                latest = info;
+                onVideoInfoRead.Invoke(info);
+            });
+        }
+        private void EnsureMediaPlayer()
+        {
+            if (mode == PreviewMode.SourceReader) 
+            {
+                player.Position = TimeSpan.FromSeconds(CachedTime);
+                Mode = PreviewMode.MediaPlayerPaused;
+                InvalidateVisual();
+            }
+        }
+        public void Seek(double seconds)
+        {
+            player.Position = TimeSpan.FromSeconds(seconds);
+
+            if (MediaPlayerSupported)
+            {
+                EnsureMediaPlayer(); //Scrubbing will be done with MediaPlayer
+
+                drawingGroup.Dispatcher.Invoke(() => { },
+                    System.Windows.Threading.DispatcherPriority.Render);
+            }
+            else if (SourceReaderSupported)
+            {
+                long sourceReaderTime = (long)(seconds * 10_000_000.0);
+                //TODO: Figure out how to cut out the need to SetCurrentPosition, because it allocates so much memory
+                /*bool setPosition = false;
+                if (seconds < CachedTime)
+                {
+                    setPosition = true;*/
+                    reader.SetCurrentPosition(sourceReaderTime);
+                //}
+
+                IMFSample? sample = StepSourceReader(sourceReaderTime, out long timestamp, getClosestEarlier: true);
+                /*if (sample == null && !setPosition)
+                {
+                    setPosition = true;
+                    reader.SetCurrentPosition(sourceReaderTime);
+                }
+                sample = StepSourceReader(sourceReaderTime, out timestamp, getClosestEarlier: true);*/
+
+                if (TryBufferSourceReaderSample(sample))
+                {
+                    InvalidateVisual();
+                }
+            }
+
+            CachedTime = seconds;
+        }
+        public void Play()
+        {
+            EnsureMediaPlayer();
+            if (mode == PreviewMode.MediaPlayerPaused)
+            {
+                player.Play();
+                Mode = PreviewMode.MediaPlayerPlaying;
+            }
+        }
+        public void Pause()
+        {
+            if (mode == PreviewMode.MediaPlayerPlaying)
+            {
+                player.Pause();
+                CachedTime = player.Position.TotalSeconds;
+                Mode = PreviewMode.MediaPlayerPaused;
+            }
+        }
+        public void Step()
+        {
+            if (mode == PreviewMode.MediaPlayerPlaying)
+            {
+                Pause();
+            }
+            if (mode == PreviewMode.MediaPlayerPaused)
+            {
+                reader.SetCurrentPosition((long)(CachedTime * 10_000_000.0)); //Sync the sourcereader with the player
+            }
+            IMFSample? sample = StepSourceReader((long)(CachedTime * 10_000_000.0), out long timestamp);
+            if (!SourceReaderSupported)
+            {
+                Program.TryOutput("Seeking is not supported for the current media type.");
+                return;
+            }
+            if (TryBufferSourceReaderSample(sample))
+            {
+                Mode = PreviewMode.SourceReader;
+                CachedTime = timestamp / 10_000_000.0;
+                InvalidateVisual();
+            }
+        }
+        #region Source reader reading and blitting logic
         struct SourceReaderSampleData
         {
             public int Width => HasAperture ? ApertureWidth : CodedWidth;
@@ -168,145 +339,35 @@ namespace FAIC.Types.Forms
                 newType.Dispose();
             }
         }
-        public void Open(string path, Action<string> appendLog, Action<ProbeMediaInfo> onVideoInfoRead)
-        {
-            if (getInfoTask is { IsCompleted: false })
-            {
-                getInfoCTS?.Cancel();
-            }
-
-            player.Open(new Uri(path));
-
-            player.MediaOpened += (_, __) =>
-            {
-                videoSize = new System.Drawing.Size(
-                    player.NaturalVideoWidth,
-                    player.NaturalVideoHeight
-                );
-
-                player.Play();
-                player.Pause();
-                Mode = PreviewMode.MediaPlayerPaused;
-                InvalidateVisual();
-            };
-
-            if (reader != null)
-            {
-                reader.Dispose();
-                reader = null;
-            }
-            IMFAttributes attributes = MFCreateAttributes(1);
-            attributes.Set(SourceReaderAttributeKeys.EnableVideoProcessing, 1);
-            reader = MFCreateSourceReaderFromURL(path, attributes);
-            reader.SetStreamSelection(SourceReaderIndex.AllStreams, false);
-            reader.SetStreamSelection(SourceReaderIndex.FirstVideoStream, true);
-            IMFMediaType outType = MFCreateMediaType();
-            outType.Set(MediaTypeAttributeKeys.MajorType, MediaTypeGuids.Video);
-            outType.Set(MediaTypeAttributeKeys.Subtype, VideoFormatGuids.Rgb32);
-            reader.SetCurrentMediaType(SourceReaderIndex.FirstVideoStream, outType);
-            readerFrameData = new(reader);
-
-            attributes.Dispose();
-            outType.Dispose();
-
-            getInfoCTS = new CancellationTokenSource();
-            getInfoTask = Program.GetMediaInfo(path, getInfoCTS.Token, (info) =>
-            {
-                latest = info;
-                onVideoInfoRead.Invoke(info);
-            });
-        }
-        private void EnsureMediaPlayer()
-        {
-            if (mode == PreviewMode.SourceReader) 
-            {
-                player.Position = TimeSpan.FromSeconds(CachedTime);
-                Mode = PreviewMode.MediaPlayerPaused;
-                InvalidateVisual();
-                Program.TryOutput("Switched to MediaPlayerPaused");
-            }
-        }
-        public void Seek(double seconds)
-        {
-            EnsureMediaPlayer(); //Scrubbing will be done with MediaPlayer
-
-            player.Position = TimeSpan.FromSeconds(seconds);
-            drawingGroup.Dispatcher.Invoke(() => { },
-                System.Windows.Threading.DispatcherPriority.Render);
-
-            CachedTime = seconds;
-        }
-        public void Play()
-        {
-            EnsureMediaPlayer();
-            if (mode == PreviewMode.MediaPlayerPaused)
-            {
-                player.Play();
-                Mode = PreviewMode.MediaPlayerPlaying;
-            }
-        }
-        public void Pause()
-        {
-            if (mode == PreviewMode.MediaPlayerPlaying)
-            {
-                player.Pause();
-                CachedTime = player.Position.TotalSeconds;
-                Mode = PreviewMode.MediaPlayerPaused;
-            }
-        }
-        public void Step()
-        {
-            if (mode == PreviewMode.MediaPlayerPlaying)
-            {
-                Pause();
-            }
-            if (mode == PreviewMode.MediaPlayerPaused)
-            {
-                reader.SetCurrentPosition((long)(CachedTime * 10_000_000.0)); //Sync the sourcereader with the player
-            }
-            IMFSample? sample = StepSourceReader((long)(CachedTime * 10_000_000.0), out long timestamp);
-            if (sample == null) return;
-
-            Mode = PreviewMode.SourceReader;
-
-            CachedTime = timestamp / 10_000_000.0;
-
-            IMFMediaBuffer buffer = sample.ConvertToContiguousBuffer();
-
-            buffer.Lock(out nint ptr, out int maxLength, out int currentLength);
-
-            readerFrame = BitmapSource.Create(
-                readerFrameData.Width,
-                readerFrameData.Height,
-                96,
-                96,
-                PixelFormats.Bgr32,
-                null,
-                ptr,
-                currentLength,
-                readerFrameData.Stride);
-
-            buffer.Unlock();
-            buffer.Dispose();
-            sample.Dispose();
-
-            InvalidateVisual();
-        }
-        private IMFSample? StepSourceReader(long afterTimestamp, out long timestamp)
+        /// <param name="getClosestEarlier">If true, returns the closest sample just before (or at) <paramref name="afterTimestamp"/>, rather than the sample after.</param>
+        private IMFSample? StepSourceReader(long afterTimestamp, out long timestamp, bool getClosestEarlier = false)
         {
             const int MAX_SAMPLES = 1000; //If we've tried 1000 samples and still haven't hit it, we should just give up. Increase if 1000 is not enough.
 
             timestamp = 0;
             IMFSample closest = null;
 
+            if (!SourceReaderSupported) return null;
+
             for (int i = 0; i < MAX_SAMPLES; i++)
             {
-                IMFSample sample = reader.ReadSample(
-                    SourceReaderIndex.FirstVideoStream,
-                    SourceReaderControlFlag.None,
-                    out int actualStreamIndex,
-                    out SourceReaderFlag flags,
-                    out timestamp);
+                IMFSample sample = null;
+                SourceReaderFlag flags = SourceReaderFlag.None;
+
+                try
+                {
+                    sample = reader.ReadSample(
+                        SourceReaderIndex.FirstVideoStream,
+                        SourceReaderControlFlag.None,
+                        out int actualStreamIndex,
+                        out flags,
+                        out timestamp);
+                }
+                catch
+                {
+                    SourceReaderSupported = false;
+                    return null;
+                }
 
                 //End of stream
                 if ((flags & SourceReaderFlag.EndOfStream) != 0) return null;
@@ -321,13 +382,90 @@ namespace FAIC.Types.Forms
 
                 if (sample != null)
                 {
+                    bool isNextSample = timestamp > afterTimestamp;
+
+                    if (isNextSample && getClosestEarlier && closest != null) return closest;
+
+                    if (closest != null)
+                    {
+                        closest.Dispose();
+                    }
                     closest = sample;
-                    if (timestamp > afterTimestamp) return closest;
+
+                    if (isNextSample) return closest;
                 }
             }
             Program.TryOutput($"Warning: stepped more than {MAX_SAMPLES} times but failed to retrieve a valid video frame after the current playback position. Returning video frame at {timestamp / 10_000_000.0}s.");
             return closest;
         }
+        private bool TryBufferSourceReaderSample(IMFSample? sample)
+        {
+            if (sample == null) return false;
+
+            nint ptr = 0;
+            int pitch = 0;
+            int length = 0;
+            IMF2DBuffer buffer2D = null;
+            IMFMediaBuffer buffer = null;
+            if (sample.BufferCount == 1)
+            {
+                buffer = sample.GetBufferByIndex(0);
+
+                buffer2D = buffer.QueryInterfaceOrNull<IMF2DBuffer>();
+                if (buffer2D != null)
+                {
+                    buffer2D.Lock2D(out ptr, out pitch);
+                    length = pitch * readerFrameData.Height;
+                }
+            }
+            if (buffer2D == null)
+            {
+                if (buffer == null)
+                {
+                    buffer = sample.ConvertToContiguousBuffer();
+                }
+                buffer.Lock(out ptr, out int maxLength, out length);
+                pitch = readerFrameData.Stride;
+            }
+
+            if (readerFrame == null
+                || readerFrame.PixelWidth != readerFrameData.Width
+                || readerFrame.PixelHeight != readerFrameData.Height)
+            {
+                readerFrame = new WriteableBitmap(
+                    readerFrameData.Width,
+                    readerFrameData.Height,
+                    96,
+                    96,
+                    PixelFormats.Bgr32,
+                    null);
+            }
+
+            if (readerFrame.TryLock(new Duration(new TimeSpan(0))))
+            {
+                readerFrame.WritePixels(new Int32Rect(0, 0, readerFrameData.Width, readerFrameData.Height), ptr, length, pitch);
+                readerFrame.Unlock();
+            }
+            else
+            {
+                Program.TryOutput("Failed to preview from source media.");
+            }
+
+            if (buffer2D != null)
+            {
+                buffer2D.Unlock2D();
+                buffer2D.Dispose();
+            }
+            else
+            {
+                buffer.Unlock();
+                buffer.Dispose();
+            }
+            sample.Dispose();
+
+            return true;
+        }
+        #endregion
         public async Task End()
         {
             if (reader != null)

@@ -1,6 +1,4 @@
-﻿using FAIC.Properties;
-
-namespace FAIC.Types
+﻿namespace FAIC.Types
 {
     public struct EncodeSettings
     {
@@ -67,7 +65,8 @@ namespace FAIC.Types
                 videoFilters = $"-vf \"{videoFilters}\" ";
             }
 
-            return $"-ss {Start} -to {End} " +
+            return "-y -threads 0 " +
+                $"-ss {Start} -to {End} " +
                 $"-i \"{InputPath}\" " +
                 "-map 0:v:0 " + //select only video
                 videoFilters;
