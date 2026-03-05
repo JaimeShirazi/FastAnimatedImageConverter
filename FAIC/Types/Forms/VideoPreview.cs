@@ -91,7 +91,6 @@ namespace FAIC.Types.Forms
         }
         void OnSourceReaderSupportChange()
         {
-            Program.TryOutput("Test");
             OnSupportChange?.Invoke();
         }
         protected override void OnRender(DrawingContext dc)

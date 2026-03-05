@@ -390,9 +390,13 @@ namespace FAIC.Types
         private StepResult BestSample(StepFindMode targetMode, long targetTimestamp)
         {
             const int MAX_SAMPLES = 1000; //If we've tried 1000 samples and still haven't hit it, we should just give up. Increase if 1000 is not enough.
+            const double MAX_FORWARD_SEEK = 5; //If we're trying to jump ahead more than 5 seconds, we should jump ahead. 
+
+            //Program.TryOutput($"--TARGETTING {targetMode} RELATIVE TO {targetTimestamp}--");
 
             void JumpTo(long timestamp) //We want to avoid using this function as much as possible.
             {
+                //Program.TryOutput("Jumping");
                 cachedSample.Dispose();
                 reader.Flush(SourceReaderIndex.AllStreams);
                 reader.SetCurrentPosition(timestamp);
@@ -405,7 +409,9 @@ namespace FAIC.Types
                 if (!sample.Exists) return null;
 
                 SampleComparison compare = new(sample.timestamp, targetTimestamp, frameEpsilon);
-                switch (compare.Evaluate(targetMode))
+                SampleComparison.Result evaluation = compare.Evaluate(targetMode);
+                //Program.TryOutput($"Sample: {evaluation} for {sample.timestamp}");
+                switch (evaluation)
                 {
                     case SampleComparison.Result.UseNothing:
                     default:
@@ -419,19 +425,23 @@ namespace FAIC.Types
                         cachedSample.NewStep(best.timestamp);
                         return null;
                     case SampleComparison.Result.UseLast:
+                        cachedSample.End(sample);
                         if (!best.Exists)
                         {
-                            Program.TryOutput($"Error: Tried to use the last sample, but didn't jump far back enough to retrieve it.");
+                            //We already returned the "best sample" last time.
                             return StepResult.Empty;
                         }
-                        cachedSample.End(sample);
                         return best;
                     case SampleComparison.Result.UseThis:
-                        Program.TryOutput($"Using this {sample.timestamp} with target {targetTimestamp}");
                         best.Dispose();
                         cachedSample.NewStep(sample.timestamp);
                         return sample;
                 }
+            }
+
+            if (Math.Abs(targetTimestamp - cachedSample.timestampNow) > StepResult.SecondsToTimestamp(MAX_FORWARD_SEEK))
+            {
+                JumpTo(targetTimestamp);
             }
 
             if (cachedSample.Exists)
@@ -442,7 +452,10 @@ namespace FAIC.Types
                         frameEpsilon,
                         cachedSample.GetNextTimeThreshold(frameEpsilon));
 
-                switch (compare.Evaluate(targetMode))
+                SampleComparison.Result evaluation = compare.Evaluate(targetMode);
+                string future = cachedSample.forwardCache.Exists ? cachedSample.forwardCache.timestamp.ToString() : "empty";
+                //Program.TryOutput($"Cached Sample: {evaluation} for {cachedSample.timestampNow} with future {future}");
+                switch (evaluation)
                 {
                     case SampleComparison.Result.UseNothing:
                     case SampleComparison.Result.UseLast: //The JumpTo for this condition specifically could be somewhat reduced by caching the previous frame as well. The conditions where this actually saves any work, however, are probably few and far between.
@@ -450,8 +463,6 @@ namespace FAIC.Types
                         cachedSample.Dispose();
                         break;
                     case SampleComparison.Result.UseThis:
-                        string future = cachedSample.forwardCache.Exists ? cachedSample.forwardCache.timestamp.ToString() : "empty";
-                        Program.TryOutput($"Using cached this {cachedSample.timestampNow} with target {targetTimestamp} and future {future}");
                         //We already returned the "best sample" last time.
                         return default;
                     case SampleComparison.Result.CacheAndKeepSearching:
