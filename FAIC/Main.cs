@@ -142,6 +142,11 @@ namespace FAIC
             videoPreview?.Step();
             UpdatePlayPanelState();
         }
+        private void reverseSeekButton_Click(object sender, EventArgs e)
+        {
+            videoPreview?.ReverseStep();
+            UpdatePlayPanelState();
+        }
         private void UpdatePlayPanelState()
         {
             mainSplit.Panel1Collapsed = !videoPreview.CanReadMedia;

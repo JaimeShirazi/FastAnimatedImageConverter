@@ -78,6 +78,7 @@ namespace FAIC
             commandLinePaddingPanel = new Panel();
             actionsPanel = new Panel();
             tooltips = new ToolTip(components);
+            reverseSeekButton = new Button();
             ((System.ComponentModel.ISupportInitialize)qualitySlider).BeginInit();
             ((System.ComponentModel.ISupportInitialize)settingsBindingSource).BeginInit();
             settingsGroupBox.SuspendLayout();
@@ -566,30 +567,31 @@ namespace FAIC
             // playbackConsoleTable
             // 
             playbackConsoleTable.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            playbackConsoleTable.ColumnCount = 2;
-            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            playbackConsoleTable.Controls.Add(seekButton, 1, 0);
-            playbackConsoleTable.Controls.Add(playButton, 0, 0);
+            playbackConsoleTable.ColumnCount = 3;
+            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3290024F));
+            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3319969F));
+            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3389969F));
+            playbackConsoleTable.Controls.Add(seekButton, 2, 0);
+            playbackConsoleTable.Controls.Add(playButton, 1, 0);
+            playbackConsoleTable.Controls.Add(reverseSeekButton, 0, 0);
             playbackConsoleTable.GrowStyle = TableLayoutPanelGrowStyle.AddColumns;
             playbackConsoleTable.Location = new Point(41, 49);
             playbackConsoleTable.Margin = new Padding(0, 3, 0, 3);
             playbackConsoleTable.Name = "playbackConsoleTable";
             playbackConsoleTable.RowCount = 1;
             playbackConsoleTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            playbackConsoleTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             playbackConsoleTable.Size = new Size(477, 35);
             playbackConsoleTable.TabIndex = 5;
             // 
             // seekButton
             // 
             seekButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            seekButton.Location = new Point(241, 0);
+            seekButton.Location = new Point(319, 0);
             seekButton.Margin = new Padding(3, 0, 3, 0);
             seekButton.Name = "seekButton";
-            seekButton.Size = new Size(233, 35);
+            seekButton.Size = new Size(155, 35);
             seekButton.TabIndex = 16;
-            seekButton.Text = "Step Next Frame";
+            seekButton.Text = "Next Frame";
             tooltips.SetToolTip(seekButton, resources.GetString("seekButton.ToolTip"));
             seekButton.UseVisualStyleBackColor = true;
             seekButton.Click += seekButton_Click;
@@ -597,10 +599,10 @@ namespace FAIC
             // playButton
             // 
             playButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            playButton.Location = new Point(3, 0);
+            playButton.Location = new Point(161, 0);
             playButton.Margin = new Padding(3, 0, 3, 0);
             playButton.Name = "playButton";
-            playButton.Size = new Size(232, 35);
+            playButton.Size = new Size(152, 35);
             playButton.TabIndex = 15;
             playButton.Text = "Play";
             tooltips.SetToolTip(playButton, "Start playing the media from the current playhead position.");
@@ -702,6 +704,19 @@ namespace FAIC
             actionsPanel.Size = new Size(1002, 54);
             actionsPanel.TabIndex = 8;
             // 
+            // reverseSeekButton
+            // 
+            reverseSeekButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            reverseSeekButton.Location = new Point(3, 0);
+            reverseSeekButton.Margin = new Padding(3, 0, 3, 0);
+            reverseSeekButton.Name = "reverseSeekButton";
+            reverseSeekButton.Size = new Size(152, 35);
+            reverseSeekButton.TabIndex = 17;
+            reverseSeekButton.Text = "Previous Frame";
+            tooltips.SetToolTip(reverseSeekButton, "Go to the previous frame in the media. This may cause the program to freeze for a bit.");
+            reverseSeekButton.UseVisualStyleBackColor = true;
+            reverseSeekButton.Click += reverseSeekButton_Click;
+            // 
             // Main
             // 
             AllowDrop = true;
@@ -797,5 +812,6 @@ namespace FAIC
         private RadioButton sampleBestRadio;
         private RadioButton sampleFastRadio;
         private Panel commandLinePaddingPanel;
+        private Button reverseSeekButton;
     }
 }
