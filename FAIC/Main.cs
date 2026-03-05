@@ -153,6 +153,7 @@ namespace FAIC
             playhead.Enabled = videoPreview.CanReadMedia && !videoPreview.IsPlaying;
             playButton.Enabled = videoPreview.MediaPlayerSupported;
             seekButton.Enabled = videoPreview.SourceReaderSupported;
+            reverseSeekButton.Enabled = videoPreview.SourceReaderSupported;
             trimStartHereButton.Enabled = videoPreview.CanReadMedia;
             trimEndHereButton.Enabled = videoPreview.CanReadMedia;
             if (videoPreview.MediaPlayerSupported)
@@ -172,11 +173,13 @@ namespace FAIC
             }
             if (videoPreview.SourceReaderSupported)
             {
-                seekButton.Text = "Step Next Frame";
+                seekButton.Text = "Next Frame";
+                reverseSeekButton.Text = "Previous Frame";
             }
             else
             {
-                seekButton.Text = "Step Next Frame Unsupported";
+                seekButton.Text = "Next Frame Unsupported";
+                reverseSeekButton.Text = "Previous Frame Unsupported";
             }
         }
         private void VideoPreview_OnStateChanged()

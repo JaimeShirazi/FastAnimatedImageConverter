@@ -142,13 +142,13 @@ Nearest: use a new constant frame rate, using the closest frame in the source me
 Blended: use a new constant frame rate, blending between the nearest frames in the source media to each output frame.
 If the new frame rate has more than 2 source media frames per output frame, Blended will only blend the 2 closest frames.</value>
   </data>
+  <metadata name="videoPreviewHost.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>17, 17</value>
+  </metadata>
   <data name="seekButton.ToolTip" xml:space="preserve">
     <value>Go to the next frame in the media.
 Warning: this function will likely freeze for a bit while the program tries to catch up. Every subsequent click should be faster, but it will reset when you scrub the timeline or start playback.</value>
   </data>
-  <metadata name="videoPreviewHost.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>17, 17</value>
-  </metadata>
   <metadata name="videoPreviewHost.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>
   </metadata>

@@ -69,6 +69,7 @@ namespace FAIC
             playbackConsoleTable = new TableLayoutPanel();
             seekButton = new Button();
             playButton = new Button();
+            reverseSeekButton = new Button();
             trimStartHereButton = new Button();
             trimEndHereButton = new Button();
             playhead = new TrackBar();
@@ -78,7 +79,6 @@ namespace FAIC
             commandLinePaddingPanel = new Panel();
             actionsPanel = new Panel();
             tooltips = new ToolTip(components);
-            reverseSeekButton = new Button();
             ((System.ComponentModel.ISupportInitialize)qualitySlider).BeginInit();
             ((System.ComponentModel.ISupportInitialize)settingsBindingSource).BeginInit();
             settingsGroupBox.SuspendLayout();
@@ -108,7 +108,6 @@ namespace FAIC
             // 
             // qualitySlider
             // 
-            qualitySlider.AccessibleDescription = "Slider for the quality of the output";
             qualitySlider.AccessibleName = "Quality Slider";
             qualitySlider.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             qualitySlider.AutoSize = false;
@@ -130,8 +129,8 @@ namespace FAIC
             // 
             // convertButton
             // 
-            convertButton.AccessibleDescription = "Begins processing";
-            convertButton.AccessibleName = "Process Button";
+            convertButton.AccessibleDescription = "";
+            convertButton.AccessibleName = "Begin conversion button";
             convertButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             convertButton.Location = new Point(3, 3);
             convertButton.Name = "convertButton";
@@ -160,6 +159,7 @@ namespace FAIC
             // 
             // cancelButton
             // 
+            cancelButton.AccessibleName = "Cancel current conversion button";
             cancelButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
             cancelButton.Enabled = false;
             cancelButton.Location = new Point(899, 3);
@@ -305,8 +305,7 @@ namespace FAIC
             // 
             // resizeSlider
             // 
-            resizeSlider.AccessibleDescription = "Slider for the quality of the output";
-            resizeSlider.AccessibleName = "Quality Slider";
+            resizeSlider.AccessibleName = "Resize Slider";
             resizeSlider.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             resizeSlider.AutoSize = false;
             resizeSlider.DataBindings.Add(new Binding("DataContext", settingsBindingSource, "Quality", true));
@@ -323,6 +322,7 @@ namespace FAIC
             // 
             // fpsValue
             // 
+            fpsValue.AccessibleName = "Target frame rate input";
             fpsValue.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             fpsValue.DecimalPlaces = 3;
             fpsValue.Enabled = false;
@@ -335,6 +335,7 @@ namespace FAIC
             // 
             // repeatValue
             // 
+            repeatValue.AccessibleName = "Repeat count input";
             repeatValue.Dock = DockStyle.Fill;
             repeatValue.Location = new Point(143, 382);
             repeatValue.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
@@ -346,6 +347,7 @@ namespace FAIC
             // 
             // fpsSetting
             // 
+            fpsSetting.AccessibleName = "Frame rate mode dropdown";
             fpsSetting.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             fpsSetting.FormattingEnabled = true;
             fpsSetting.Items.AddRange(new object[] { "Same", "Nearest", "Blended" });
@@ -359,8 +361,7 @@ namespace FAIC
             // 
             // speedSlider
             // 
-            speedSlider.AccessibleDescription = "Slider for the quality of the output";
-            speedSlider.AccessibleName = "Quality Slider";
+            speedSlider.AccessibleName = "Speed Slider";
             speedSlider.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             speedSlider.AutoSize = false;
             speedSlider.DataBindings.Add(new Binding("DataContext", settingsBindingSource, "Quality", true));
@@ -410,6 +411,7 @@ namespace FAIC
             // 
             // lastFrameInput
             // 
+            lastFrameInput.AccessibleName = "Trim end of the video to X seconds input";
             lastFrameInput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             lastFrameInput.DecimalPlaces = 3;
             lastFrameInput.Location = new Point(143, 212);
@@ -459,6 +461,7 @@ namespace FAIC
             // 
             // firstFrameInput
             // 
+            firstFrameInput.AccessibleName = "Trim start of the video to X seconds input";
             firstFrameInput.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             firstFrameInput.DecimalPlaces = 3;
             firstFrameInput.Location = new Point(143, 175);
@@ -470,6 +473,7 @@ namespace FAIC
             // 
             // resizeDimensionValue
             // 
+            resizeDimensionValue.AccessibleName = "Resize Input";
             resizeDimensionValue.Dock = DockStyle.Fill;
             resizeDimensionValue.Location = new Point(143, 77);
             resizeDimensionValue.Maximum = new decimal(new int[] { 16384, 0, 0, 0 });
@@ -509,6 +513,7 @@ namespace FAIC
             // 
             // sampleBestRadio
             // 
+            sampleBestRadio.AccessibleName = "Best resampling algorithm button";
             sampleBestRadio.AutoSize = true;
             sampleBestRadio.Location = new Point(130, 3);
             sampleBestRadio.Name = "sampleBestRadio";
@@ -520,6 +525,7 @@ namespace FAIC
             // 
             // sampleFastRadio
             // 
+            sampleFastRadio.AccessibleName = "Fast resampling algorithm button";
             sampleFastRadio.AutoSize = true;
             sampleFastRadio.Checked = true;
             sampleFastRadio.Location = new Point(3, 3);
@@ -585,6 +591,7 @@ namespace FAIC
             // 
             // seekButton
             // 
+            seekButton.AccessibleName = "Step forwards 1 frame button";
             seekButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             seekButton.Location = new Point(319, 0);
             seekButton.Margin = new Padding(3, 0, 3, 0);
@@ -598,6 +605,7 @@ namespace FAIC
             // 
             // playButton
             // 
+            playButton.AccessibleName = "Begin playback button";
             playButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             playButton.Location = new Point(161, 0);
             playButton.Margin = new Padding(3, 0, 3, 0);
@@ -609,8 +617,23 @@ namespace FAIC
             playButton.UseVisualStyleBackColor = true;
             playButton.Click += playButton_Click;
             // 
+            // reverseSeekButton
+            // 
+            reverseSeekButton.AccessibleName = "Step backwards 1 frame button";
+            reverseSeekButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            reverseSeekButton.Location = new Point(3, 0);
+            reverseSeekButton.Margin = new Padding(3, 0, 3, 0);
+            reverseSeekButton.Name = "reverseSeekButton";
+            reverseSeekButton.Size = new Size(152, 35);
+            reverseSeekButton.TabIndex = 17;
+            reverseSeekButton.Text = "Previous Frame";
+            tooltips.SetToolTip(reverseSeekButton, "Go to the previous frame in the media. This may cause the program to freeze for a bit.");
+            reverseSeekButton.UseVisualStyleBackColor = true;
+            reverseSeekButton.Click += reverseSeekButton_Click;
+            // 
             // trimStartHereButton
             // 
+            trimStartHereButton.AccessibleName = "Trim start of output to current playhead";
             trimStartHereButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
             trimStartHereButton.Location = new Point(3, 3);
             trimStartHereButton.Name = "trimStartHereButton";
@@ -623,6 +646,7 @@ namespace FAIC
             // 
             // trimEndHereButton
             // 
+            trimEndHereButton.AccessibleName = "Trim end of output to current playhead";
             trimEndHereButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
             trimEndHereButton.Location = new Point(521, 3);
             trimEndHereButton.Name = "trimEndHereButton";
@@ -635,6 +659,7 @@ namespace FAIC
             // 
             // playhead
             // 
+            playhead.AccessibleName = "Playhead/timeline";
             playhead.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             playhead.AutoSize = false;
             playhead.LargeChange = 10000;
@@ -703,19 +728,6 @@ namespace FAIC
             actionsPanel.Name = "actionsPanel";
             actionsPanel.Size = new Size(1002, 54);
             actionsPanel.TabIndex = 8;
-            // 
-            // reverseSeekButton
-            // 
-            reverseSeekButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            reverseSeekButton.Location = new Point(3, 0);
-            reverseSeekButton.Margin = new Padding(3, 0, 3, 0);
-            reverseSeekButton.Name = "reverseSeekButton";
-            reverseSeekButton.Size = new Size(152, 35);
-            reverseSeekButton.TabIndex = 17;
-            reverseSeekButton.Text = "Previous Frame";
-            tooltips.SetToolTip(reverseSeekButton, "Go to the previous frame in the media. This may cause the program to freeze for a bit.");
-            reverseSeekButton.UseVisualStyleBackColor = true;
-            reverseSeekButton.Click += reverseSeekButton_Click;
             // 
             // Main
             // 
