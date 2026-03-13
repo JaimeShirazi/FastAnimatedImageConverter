@@ -33,7 +33,7 @@ namespace FAIC
             };
 
             string arguments = settings.GetFFmpegArguments() +
-                        "-threads 0 -pix_fmt yuva444p -strict -1 " +
+                        "-threads 0 -pix_fmt yuv444p -strict -1 " +
                         "-f yuv4mpegpipe -";
 
             TryOutput("ffmpeg.exe " + arguments);
@@ -104,15 +104,19 @@ namespace FAIC
                 TryOutput("Encode cancelled by user.");
             }
         }
-        private static async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token)
+        private static async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "")
         {
             int loops = Math.Min(settings.Repeats + 1, 0);
+            string targetOutput = string.IsNullOrEmpty(outputPath) ? settings.OutputPath : outputPath;
+
             string allArguments = settings.GetFFmpegArguments() +
-                        $"-r {settings.TargetFrameRate} " +
-                        $"-loop {loops} " +
-                        "-threads 0 -pix_fmt rgba " +
+                        $"-r {settings.TargetFrameRate} ";
+
+            if (!omitLoops) allArguments += $"-loop {loops} ";
+
+            allArguments += $"-threads 0 -pix_fmt {pixfmt} " +
                         arguments +
-                        $"\"{settings.OutputPath}\"";
+                        $"\"{targetOutput}\"";
 
             TryOutput("ffmpeg.exe " + allArguments);
 
@@ -190,7 +194,7 @@ namespace FAIC
         }
         public static async Task EncodeWebP(EncodeSettings settings, CancellationToken token)
         {
-            string arguments = "-c:v libwebp ";
+            string arguments = "-c:v libwebp_anim ";
 
             if (settings.Quality >= 100)
             {
@@ -203,7 +207,7 @@ namespace FAIC
                 arguments += $"-lossless 0 -q:v {webpQ} ";
             }
 
-            await EncodeWithFFmpeg(settings, arguments, token);
+            await EncodeWithFFmpeg(settings, arguments, token, pixfmt: settings.Transparent ? "yuva420p" : "yuv420p");
         }
         public static async Task EncodeJXL(EncodeSettings settings, CancellationToken token)
         {
@@ -226,17 +230,70 @@ namespace FAIC
         }
         public static async Task EncodeAPNG(EncodeSettings settings, CancellationToken token)
         {
-            string arguments = "-f apng ";
+            string playsFormat = settings.Repeats < 0 ? "0" : (settings.Repeats + 1).ToString();
+            string arguments = $"-plays {playsFormat} ";
+
+            arguments += "-f apng ";
 
             int apngCompression = (int)Math.Round(9 * (1.0 - settings.Quality / 100.0));
             arguments += $"-compression_level {apngCompression} ";
 
-            await EncodeWithFFmpeg(settings, arguments, token);
+            await EncodeWithFFmpeg(settings, arguments, token, omitLoops: true);
         }
         public static async Task EncodeGIF(EncodeSettings settings, CancellationToken token)
         {
-            string repetition = settings.Repeats < 0 ? "--repeat 0 " : $"--repeat {settings.Repeats} ";
-            string arguments = $"-Q {Math.Max(settings.Quality, 1)} {repetition}-o \"{settings.OutputPath}\" -"; //trailing - indicates stdin input
+            if (settings.Transparent)
+            {
+                switch (MessageBox.Show(
+                        "Outputing GIF with transparency. This requires that temporary PNG frames are generated. Depending on your media, this may result in high temporary storage usage. Ensure that your system can handle the output resolution and framerate before proceeding.",
+                        "Higher Demand in GIF Transparent Mode",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Warning
+                        )
+                    )
+                {
+                    case DialogResult.Cancel:
+                        TryOutput("Operation cancelled by user.");
+                        return;
+                }
+            }
+            if (settings.Width > 800 || settings.Height > 800)
+            {
+                switch (MessageBox.Show(
+                        $"Outputing GIF with size {settings.Width}x{settings.Height}. This may result in large file sizes. You may proceed, or consider resizing to a smaller resolution and/or using a more modern format with better compression.",
+                        "Large Output Resolution",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Warning
+                        )
+                    )
+                {
+                    case DialogResult.Cancel:
+                        TryOutput("Operation cancelled by user.");
+                        return;
+                }
+            }
+
+            string repetition = "--repeat " + settings.Repeats switch
+            {
+                < 0 => 0, //forever = 0
+                0 => -1, //-1 = once
+                _ => settings.Repeats
+            } + " ";
+            
+            string arguments = $"-Q {Math.Max(settings.Quality, 1)} {repetition}--width={settings.Width} --height={settings.Height} ";
+            if (settings.Transparent) arguments += $"-r {settings.TargetFrameRate} ";
+            arguments += $"-o \"{settings.OutputPath}\" ";
+
+            string transparentTempFramesDirectory = Path.Combine(Path.GetTempPath(), "FAIC_" + Guid.NewGuid().ToString("N"));
+
+            if (settings.Transparent)
+            {
+                arguments += "frame_*.png";
+            }
+            else
+            {
+                arguments += "-"; //trailing - indicates stdin input
+            }
 
             TryOutput("gifski.exe " + arguments);
 
@@ -254,71 +311,66 @@ namespace FAIC
                 EnableRaisingEvents = true
             };
 
-            try
+            if (settings.Transparent)
             {
-                await EncodeWithFFmpegPipe(settings, gifski, token);
-
-                if (settings.Repeats == 0)
+                gifski.ErrorDataReceived += (_, e) =>
                 {
-                    //gifski is weird and I couldn't get it to write exactly one playthrough to the gif reliably, so if the user wants the gif to only play once, we need to manually fix the tag in the file.
-                    TryOutput("Stripping netscape header to play exactly once...");
+                    if (!string.IsNullOrWhiteSpace(e.Data))
+                        TryOutput(e.Data);
+                };
 
-                    byte[] data = await File.ReadAllBytesAsync(settings.OutputPath, token);
-                    byte[] marker = Encoding.ASCII.GetBytes("NETSCAPE2.0");
+                int frameDigits = (int)Math.Floor(Math.Log10((double)((settings.End - settings.Start) * settings.TargetFrameRate))) + 1;
 
-                    bool match = true;
-                    for (int i = 0; i < data.Length - marker.Length; i++)
+                gifski.StartInfo.WorkingDirectory = transparentTempFramesDirectory;
+                try
+                {
+                    Directory.CreateDirectory(transparentTempFramesDirectory);
+
+                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"));
+
+                    TryOutput("Done preparing frames.");
+
+                    gifski.Start();
+
+                    gifski.BeginErrorReadLine();
+
+                    using var registration = token.Register(() =>
                     {
-                        match = true;
-                        for (int j = 0; j < marker.Length; j++)
+                        try
                         {
-                            if (data[i + j] != marker[j])
-                            {
-                                match = false;
-                                break;
-                            }
+                            if (!gifski.HasExited)
+                                gifski.Kill(entireProcessTree: true);
                         }
-                        if (!match) continue;
+                        catch { }
+                    });
 
-                        //Make sure it actually is the full 19 byte block
-                        if (i < 3)
-                        {
-                            match = false;
-                            continue;
-                        }
-                        if (data[i - 3] != 0x21 || data[i - 2] != 0xFF || data[i - 1] != 0x0B)
-                        {
-                            match = false;
-                            continue;
-                        }
-
-                        int blockStart = i - 3;
-                        const int BLOCK_LENGTH = 19; //full Netscape extension block length
-
-                        byte[] newData = new byte[data.Length - BLOCK_LENGTH];
-                        Buffer.BlockCopy(data, 0, newData, 0, blockStart);
-                        Buffer.BlockCopy(data, blockStart + BLOCK_LENGTH,
-                                         newData, blockStart,
-                                         data.Length - (blockStart + BLOCK_LENGTH));
-
-                        await File.WriteAllBytesAsync(settings.OutputPath, newData, token);
-                        break;
-                    }
-
-                    if (match)
+                    await gifski.WaitForExitAsync(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    TryOutput("Encode cancelled by user.");
+                }
+                finally
+                {
+                    if (Directory.Exists(transparentTempFramesDirectory))
                     {
-                        TryOutput("Done overwriting loop count.");
+                        TryOutput("Cleaning up temporary files...");
+                        Directory.Delete(transparentTempFramesDirectory, recursive: true);
                     }
-                    else
-                    {
-                        TryOutput("Failed to overwrite loop count. GIF will loop infinitely.");
-                    }
+                    TryOutput("Complete!");
                 }
             }
-            catch { }
-            finally
+            else
             {
-                TryOutput("Complete!");
+                try
+                {
+                    await EncodeWithFFmpegPipe(settings, gifski, token);
+                }
+                catch { }
+                finally
+                {
+                    TryOutput("Complete!");
+                }
             }
         }
         public static async Task GetMediaInfo(string path, CancellationToken token, Action<ProbeMediaInfo> receiveInfoCallback)
@@ -387,6 +439,7 @@ namespace FAIC
             catch (Exception e)
             {
                 TryOutput($"Unable to probe media: {e.Message}");
+                receiveInfoCallback(null);
             }
         }
     }

@@ -167,6 +167,13 @@ namespace FAIC.Types.Forms
             getInfoCTS = new CancellationTokenSource();
             getInfoTask = Program.GetMediaInfo(path, getInfoCTS.Token, (info) =>
             {
+                if (info == null)
+                {
+                    MediaPlayerSupported = false;
+                    sourceReader.Open("");
+                    onVideoInfoRead.Invoke(null);
+                    return;
+                }
                 latest = info;
                 sourceReader.OnInformationFetch(info);
                 onVideoInfoRead.Invoke(info);

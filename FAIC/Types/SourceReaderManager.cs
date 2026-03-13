@@ -382,8 +382,8 @@ namespace FAIC.Types
             }
             public SampleComparison(long sampleTime, long target, long epsilon, long forwardThreshold)
             {
-                IsBefore = sampleTime < target - epsilon;
-                IsAfter = sampleTime > target + forwardThreshold;
+                IsBefore = sampleTime < target - forwardThreshold;
+                IsAfter = sampleTime > target + epsilon;
                 IsEqual = !IsBefore && !IsAfter;
             }
         }

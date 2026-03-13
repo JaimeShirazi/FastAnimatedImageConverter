@@ -42,7 +42,9 @@ namespace FAIC
             settingsGroupBox = new GroupBox();
             settingsContainerPanel = new Panel();
             settingsTable = new TableLayoutPanel();
+            transparentCheckbox = new CheckBox();
             lastFrameLabel = new Label();
+            transparentLabel = new Label();
             resizeDimensionLabel = new Label();
             label1 = new Label();
             resizeLabel = new Label();
@@ -180,7 +182,7 @@ namespace FAIC
             commandLineOutput.Location = new Point(3, 3);
             commandLineOutput.Name = "commandLineOutput";
             commandLineOutput.ReadOnly = true;
-            commandLineOutput.Size = new Size(400, 179);
+            commandLineOutput.Size = new Size(400, 124);
             commandLineOutput.TabIndex = 5;
             commandLineOutput.Text = "";
             tooltips.SetToolTip(commandLineOutput, "Console output from the converter tools.");
@@ -195,7 +197,7 @@ namespace FAIC
             settingsGroupBox.Location = new Point(3, 3);
             settingsGroupBox.Margin = new Padding(3, 3, 3, 0);
             settingsGroupBox.Name = "settingsGroupBox";
-            settingsGroupBox.Size = new Size(406, 446);
+            settingsGroupBox.Size = new Size(406, 501);
             settingsGroupBox.TabIndex = 6;
             settingsGroupBox.TabStop = false;
             settingsGroupBox.Text = "Settings";
@@ -207,7 +209,7 @@ namespace FAIC
             settingsContainerPanel.Dock = DockStyle.Fill;
             settingsContainerPanel.Location = new Point(3, 27);
             settingsContainerPanel.Name = "settingsContainerPanel";
-            settingsContainerPanel.Size = new Size(400, 416);
+            settingsContainerPanel.Size = new Size(400, 471);
             settingsContainerPanel.TabIndex = 9;
             // 
             // settingsTable
@@ -217,7 +219,9 @@ namespace FAIC
             settingsTable.ColumnCount = 2;
             settingsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140F));
             settingsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            settingsTable.Controls.Add(transparentCheckbox, 1, 13);
             settingsTable.Controls.Add(lastFrameLabel, 0, 6);
+            settingsTable.Controls.Add(transparentLabel, 0, 13);
             settingsTable.Controls.Add(resizeDimensionLabel, 0, 2);
             settingsTable.Controls.Add(label1, 0, 3);
             settingsTable.Controls.Add(resizeLabel, 0, 1);
@@ -240,7 +244,7 @@ namespace FAIC
             settingsTable.Location = new Point(0, 0);
             settingsTable.Margin = new Padding(3, 3, 3, 0);
             settingsTable.Name = "settingsTable";
-            settingsTable.RowCount = 12;
+            settingsTable.RowCount = 14;
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
@@ -253,8 +257,21 @@ namespace FAIC
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
-            settingsTable.Size = new Size(400, 416);
+            settingsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            settingsTable.RowStyles.Add(new RowStyle());
+            settingsTable.Size = new Size(400, 471);
             settingsTable.TabIndex = 8;
+            // 
+            // transparentCheckbox
+            // 
+            transparentCheckbox.AutoSize = true;
+            transparentCheckbox.Dock = DockStyle.Fill;
+            transparentCheckbox.Location = new Point(143, 439);
+            transparentCheckbox.Name = "transparentCheckbox";
+            transparentCheckbox.Size = new Size(254, 29);
+            transparentCheckbox.TabIndex = 6;
+            transparentCheckbox.Text = "Transparent";
+            transparentCheckbox.UseVisualStyleBackColor = true;
             // 
             // lastFrameLabel
             // 
@@ -267,6 +284,18 @@ namespace FAIC
             lastFrameLabel.TabIndex = 7;
             lastFrameLabel.Text = "End";
             lastFrameLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // transparentLabel
+            // 
+            transparentLabel.AutoSize = true;
+            transparentLabel.Dock = DockStyle.Fill;
+            transparentLabel.Location = new Point(3, 436);
+            transparentLabel.MinimumSize = new Size(65, 0);
+            transparentLabel.Name = "transparentLabel";
+            transparentLabel.Size = new Size(134, 35);
+            transparentLabel.TabIndex = 20;
+            transparentLabel.Text = "Format";
+            transparentLabel.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // resizeDimensionLabel
             // 
@@ -368,7 +397,7 @@ namespace FAIC
             speedSlider.DataBindings.Add(new Binding("Value", settingsBindingSource, "Quality", true, DataSourceUpdateMode.OnPropertyChanged));
             speedSlider.LargeChange = 1;
             speedSlider.Location = new Point(143, 269);
-            speedSlider.Maximum = 15;
+            speedSlider.Maximum = 16;
             speedSlider.Name = "speedSlider";
             speedSlider.Size = new Size(254, 31);
             speedSlider.TabIndex = 8;
@@ -714,9 +743,9 @@ namespace FAIC
             commandLinePaddingPanel.BackColor = SystemColors.Window;
             commandLinePaddingPanel.Controls.Add(commandLineOutput);
             commandLinePaddingPanel.Dock = DockStyle.Fill;
-            commandLinePaddingPanel.Location = new Point(3, 452);
+            commandLinePaddingPanel.Location = new Point(3, 507);
             commandLinePaddingPanel.Name = "commandLinePaddingPanel";
-            commandLinePaddingPanel.Size = new Size(406, 185);
+            commandLinePaddingPanel.Size = new Size(406, 130);
             commandLinePaddingPanel.TabIndex = 9;
             // 
             // actionsPanel
@@ -825,5 +854,7 @@ namespace FAIC
         private RadioButton sampleFastRadio;
         private Panel commandLinePaddingPanel;
         private Button reverseSeekButton;
+        private CheckBox transparentCheckbox;
+        private Label transparentLabel;
     }
 }

@@ -14,6 +14,10 @@ namespace FAIC
             {
                 if (Path.Exists(value))
                 {
+                    //These will be reenabled once ffprobe can read the media
+                    convertButton.Enabled = false;
+                    transparentCheckbox.Enabled = false;
+
                     inputPath = value;
                     if (videoPreview != null)
                     {
@@ -40,6 +44,7 @@ namespace FAIC
         /// </summary>
         private int frameRateLastModeBuffer = 0;
         private VideoPreview videoPreview;
+        private ProbeMediaInfo latestInfo;
         public Main(string inputPath)
         {
             Program.UpdateConsole(this);
@@ -87,8 +92,11 @@ namespace FAIC
         #region Playhead management
         private void OnNewVideoInfo(ProbeMediaInfo info)
         {
-            settingsGroupBox.Enabled = !info.IsEmpty();
-            if (info.IsEmpty())
+            latestInfo = info;
+            bool hadInfo = !(info?.IsEmpty() ?? true);
+            settingsGroupBox.Enabled = hadInfo;
+            convertButton.Enabled = hadInfo;
+            if (!hadInfo)
             {
                 AppendLog("Unable to read media.");
                 return;
@@ -109,6 +117,9 @@ namespace FAIC
             lastFrameInput.Maximum = Math.Round((decimal)info.Length, 3);
             firstFrameInput.Maximum = lastFrameInput.Maximum;
             lastFrameInput.Value = lastFrameInput.Maximum;
+
+            transparentCheckbox.Enabled = EncodeSettings.IsFormatTransparencySupported(info.Codec);
+            if (!transparentCheckbox.Enabled) transparentCheckbox.Checked = false;
 
             fpsSetting.SelectedIndex = 0;
             automaticallyChangedFrameRateModeToNearest = false;
@@ -267,7 +278,7 @@ namespace FAIC
         #region Speed setting
         public static readonly double[] Speeds =
         [
-            0.1, 0.25, 0.33333333333333333, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5, 6, 8, 12, 16
+            0.1, 0.25, 0.33333333333333333, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5, 6, 8, 12, 16, 32
         ];
         private void speedSlider_Scroll(object sender, EventArgs e)
         {
@@ -355,6 +366,10 @@ namespace FAIC
                 lastFrameInput.Value = firstFrameInput.Value;
                 firstFrameInput.Value = lastFrameTimeCurrent;
             }
+
+            saveFileDialogue.Filter = transparentCheckbox.Checked ?
+                "Transparent WebP (*.webp)|*.webp|Transparent Animated Portable Network Graphics (*.png, *.apng)|*.png;*.apng|Transparent Graphics Interchange Format (*.gif)|*.gif"
+                : "AV1 Image File Format (*.avif)|*.avif|JPEG XL (*.jxl)|*.jxl|WebP (*.webp)|*.webp|Animated Portable Network Graphics (*.png, *.apng)|*.png;*.apng|Graphics Interchange Format (*.gif)|*.gif";
 
             if (saveFileDialogue.ShowDialog() == DialogResult.OK)
             {
@@ -446,6 +461,7 @@ namespace FAIC
                 EncodeSettings settings = new EncodeSettings()
                 {
                     InputPath = inputPath,
+                    InputFormat = latestInfo?.Codec ?? "",
                     OutputPath = outputPath,
                     Quality = qualitySlider.Value,
                     Start = firstFrameInput.Value,
@@ -456,13 +472,15 @@ namespace FAIC
                     Speed = Speeds[speedSlider.Value],
                     TargetFrameRate = fpsValue.Value,
                     Interpolate = interpolateSetting,
-                    Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value
+                    Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value,
+                    Transparent = transparentCheckbox.Checked
                 };
 
                 switch (extension)
                 {
                     case "avif":
                     default:
+                        if (extension != "avif") AppendLog("Error: Unrecognised extension. Outputting as AVIF.");
                         await Program.EncodeAVIF(settings, token);
                         break;
                     case "gif":

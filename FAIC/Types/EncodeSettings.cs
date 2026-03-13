@@ -11,6 +11,7 @@
             None, Nearest, Blended
         }
         public string InputPath;
+        public string InputFormat;
         public string OutputPath;
         /// <summary>
         /// From 0 to 100
@@ -23,6 +24,14 @@
         public decimal TargetFrameRate;
         public InterpolateSetting Interpolate;
         public int Repeats;
+        public bool Transparent;
+        public static bool IsFormatTransparencySupported(string format)
+        {
+            string lowerFormat = format.ToLower();
+            if (lowerFormat == "vp8") return true;
+            if (lowerFormat == "vp9") return true;
+            return false;
+        }
         public override string ToString()
         {
             return $"Input {InputPath}, Output {OutputPath}\n{Quality}% quality, {Width}x{Height} by {Resample}\nFrom {Start} to {End}\n{Speed}x speed at {TargetFrameRate}FPS by {Interpolate}\n";
@@ -65,8 +74,24 @@
                 videoFilters = $"-vf \"{videoFilters}\" ";
             }
 
+            string decoderOverride = "";
+            if (Transparent
+                && IsFormatTransparencySupported(InputFormat))
+            {
+                switch (InputFormat.ToLower())
+                {
+                    case "vp8":
+                        decoderOverride = "-c:v libvpx ";
+                        break;
+                    case "vp9":
+                        decoderOverride = "-c:v libvpx-vp9 ";
+                        break;
+                }
+            }
+
             return "-y -threads 0 " +
                 $"-ss {Start} -to {End} " +
+                decoderOverride +
                 $"-i \"{InputPath}\" " +
                 "-map 0:v:0 " + //select only video
                 videoFilters;
