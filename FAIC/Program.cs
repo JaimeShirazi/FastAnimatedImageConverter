@@ -33,7 +33,7 @@ namespace FAIC
             };
 
             string arguments = settings.GetFFmpegArguments() +
-                        "-threads 0 -pix_fmt yuva444p " +
+                        "-threads 0 -pix_fmt yuva444p -strict -1 " +
                         "-f yuv4mpegpipe -";
 
             TryOutput("ffmpeg.exe " + arguments);
