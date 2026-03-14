@@ -46,7 +46,7 @@ Root: HKCU; Subkey: "{#SubkeyPathPre}SystemFileAssociations\.webm{#SubkeyPathPos
 Root: HKCU; Subkey: "{#SubkeyPathPre}SystemFileAssociations\.webm{#SubkeyPathPost}\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Tasks: contextmenu
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppName}"; Tasks: startmenu
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: startmenu
 Name: "{group}\Uninstall {#AppNameShort}"; Filename: "{uninstallexe}"; Tasks: startmenu
   
 [Run]

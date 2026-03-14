@@ -208,6 +208,9 @@ namespace FAIC
                 arguments += $"-lossless 0 -q:v {webpQ} ";
             }
 
+            TryOutput("WARNING: progress does not currently display for WebP, but it is still processing. This is an issue with ffmpeg. It will say 0 frames, but it is still processing, please wait until you see the complete message.");
+            TryOutput("");
+
             await EncodeWithFFmpeg(settings, arguments, token, pixfmt: settings.Transparent ? "yuva420p" : "yuv420p");
         }
         public static async Task EncodeJXL(EncodeSettings settings, CancellationToken token)

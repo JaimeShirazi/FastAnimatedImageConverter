@@ -46,7 +46,7 @@ Transparency is supported for all formats.
 
 Most container formats (mp4, mov, mkv, webm, etc.) for these codecs should work, it comes down mostly to what ffmpeg supports.
 Preview support for any given format depends on your computer.
-Other input codecs may work, but support cannot be garuanteed, and you likely won't be able to preview it in the left panel.
+Other input codecs may work, but support cannot be guaranteed, and you likely won't be able to preview it in the left panel.
 
 ## Installation
 Download the installer from the releases tab, and run the installer! This program will only run on 64-bit Windows machines. If it doesn't work after installation, ensure that the [.NET Desktop Runtime 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (make sure you download the right thing from this page) is installed on your machine.
