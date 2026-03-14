@@ -1,32 +1,38 @@
-<p align="center">
-      <img src="FAIC/Logo_512.png" width="128" style="vertical-align: middle; margin-right: 16px;">
-      <span style="font-size: 2em; vertical-align: middle;"><b>Fast Animated Image Converter</b></span>
-</p>
-<h1>Overview</h1>
-<p>A simple GUI layer on top of existing softwares to take the guesswork out of creating animated images.</p>
+<h1 align="center">
+      <img src="FAIC/Logo_512.png" width="96">&nbsp;&nbsp; Fast Animated Image Converter
+</h1>
+
+A simple GUI layer on top of existing softwares to take the guesswork out of creating animated images.
 
 <p align="center">
     <img src="Docs/ScreenshotDemo1.jpg" width=50% alt="Demo screenshot of the program converting a webm"/>
     <img src="Docs/ScreenshotDemo2.jpg" width=75% alt="Demo screenshot of the program converting an mp4"/>
 </p>
 
-<p>I made this mostly because I was finding those online conversion tools had unbearably slow upload speeds, ffmpeg CLI was really tough to work with, and the common prebuilt ffmpeg binaries didn't even ship with the right features to create certain types of animated formats in the first place.</p>
-<p>The aim of the project was to produce a clutter-free simple interface for converting files to animated images, and add it to the file explorer context menu to make it as easy as possible.</p>
+I made this mostly because I was finding those online conversion tools had unbearably slow upload speeds, ffmpeg CLI was really tough to work with, and the common prebuilt ffmpeg binaries didn't even ship with the right features to create certain types of animated formats in the first place.
+
+The aim of the project was to produce a clutter-free simple interface for converting files to animated images, and add it to the file explorer context menu to make it as easy as possible.
+
 <p align="center">
     <img src="Docs/RightClickDemo.jpg" width=50% alt="Screenshot of right clicking on a video file"/>
 </p>
-<p>GIF support is also achieved via [gifski](https://gif.ski/), a higher-quality GIF encoder than ffmpeg's built-in one.</p>
 
-## Export Support
+GIF support is also achieved via [gifski](https://gif.ski/), a higher-quality GIF encoder than ffmpeg's built-in one.
+
+## Output Support
+
+> [!WARNING]
+> JPEG XL does not currently support finite loops, due to limitations with ffmpeg. By default, JPEG XL files will loop infinitely. Otherwise, all formats can have finite loop counts, or loop infinitely.
+
 Fast Animated Image Converter supports creating:
+
 - GIF
 - WebP
 - APNG
 - JPEG XL
 - AVIF
 
-All formats support transparency and infinite loops.
-All formats except JPEG XL support finite loops. JPEG XL finite loop support is not implemented in ffmpeg, so by default, converted JPEG XL files will loop infinitely.
+Transparency is supported for all formats.
 
 ## Input Support
 | Codec | Input | Transparent Input |
