@@ -131,7 +131,9 @@ namespace FAIC
         }
         private void VideoPreview_OnNewTime(double time)
         {
-            playhead.Value = (int)(time * 1000);
+            int target = (int)(time * 1000);
+            target = Math.Clamp(target, playhead.Minimum, playhead.Maximum);
+            playhead.Value = target;
         }
         private void playhead_Scroll(object sender, EventArgs e)
         {
@@ -366,11 +368,8 @@ namespace FAIC
                 lastFrameInput.Value = firstFrameInput.Value;
                 firstFrameInput.Value = lastFrameTimeCurrent;
             }
-
-            saveFileDialogue.Filter = transparentCheckbox.Checked ?
-                "Transparent WebP (*.webp)|*.webp|Transparent Animated Portable Network Graphics (*.png, *.apng)|*.png;*.apng|Transparent Graphics Interchange Format (*.gif)|*.gif"
-                : "AV1 Image File Format (*.avif)|*.avif|JPEG XL (*.jxl)|*.jxl|WebP (*.webp)|*.webp|Animated Portable Network Graphics (*.png, *.apng)|*.png;*.apng|Graphics Interchange Format (*.gif)|*.gif";
-
+            saveFileDialogue.InitialDirectory = Path.GetDirectoryName(inputPath);
+            saveFileDialogue.FileName = Path.GetFileNameWithoutExtension(inputPath) + "_Converted";
             if (saveFileDialogue.ShowDialog() == DialogResult.OK)
             {
                 if (_encodeTask is { IsCompleted: false })

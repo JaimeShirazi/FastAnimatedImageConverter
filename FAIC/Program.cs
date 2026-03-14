@@ -20,11 +20,12 @@ namespace FAIC
         {
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
+            Application.EnableVisualStyles();
             ApplicationConfiguration.Initialize();
             Application.Run(args.Length > 0 ? new Main(args[0]) : new(""));
         }
         const int BUFFER_SIZE = 32 * 1024 * 1024; //32MB
-        private static async Task EncodeWithFFmpegPipe(EncodeSettings settings, Process receiver, CancellationToken token)
+        private static async Task EncodeWithFFmpegPipe(EncodeSettings settings, Process receiver, CancellationToken token, string pixfmt = "yuv444p")
         {
             receiver.ErrorDataReceived += (_, e) =>
             {
@@ -33,7 +34,7 @@ namespace FAIC
             };
 
             string arguments = settings.GetFFmpegArguments() +
-                        "-threads 0 -pix_fmt yuv444p -strict -1 " +
+                        $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
                         "-f yuv4mpegpipe -";
 
             TryOutput("ffmpeg.exe " + arguments);
@@ -184,7 +185,7 @@ namespace FAIC
 
             try
             {
-                await EncodeWithFFmpegPipe(settings, avifenc, token);
+                await EncodeWithFFmpegPipe(settings, avifenc, token, pixfmt: settings.Transparent ? "yuva444p" : "yuv444p");
             }
             catch { }
             finally

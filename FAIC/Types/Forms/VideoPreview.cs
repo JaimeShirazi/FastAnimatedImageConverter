@@ -1,4 +1,5 @@
 ﻿using SharpGen.Runtime;
+using System.Drawing;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -146,6 +147,10 @@ namespace FAIC.Types.Forms
             }
 
             MediaPlayerSupported = false;
+            if (player != null)
+            {
+                player.Stop();
+            }
             player.Open(new Uri(path));
             player.MediaOpened += (_, __) =>
             {
@@ -161,6 +166,24 @@ namespace FAIC.Types.Forms
                 Mode = PreviewMode.MediaPlayerPaused;
                 InvalidateVisual();
             };
+
+            //Clear the frame so we don't have the previous video left over
+            if (readerFrame != null)
+            {
+                readerFrame.Lock();
+                try
+                {
+                    Int32Rect rect = new Int32Rect(0, 0, readerFrame.PixelWidth, readerFrame.PixelHeight);
+                    int bytesPerPixel = readerFrame.Format.BitsPerPixel / 8;
+                    byte[] empty = new byte[rect.Width * rect.Height * bytesPerPixel];
+                    int emptyStride = rect.Width * bytesPerPixel;
+                    readerFrame.WritePixels(rect, empty, emptyStride, 0);
+                }
+                finally
+                {
+                    readerFrame.Unlock();
+                }
+            }
 
             sourceReader.Open(path);
 
