@@ -1,4 +1,5 @@
 using FAIC.Types;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -25,38 +26,55 @@ namespace FAIC
             Application.Run(args.Length > 0 ? new Main(args[0]) : new(""));
         }
         const int BUFFER_SIZE = 32 * 1024 * 1024; //32MB
-        private static async Task EncodeWithFFmpegPipe(EncodeSettings settings, Process receiver, CancellationToken token, string pixfmt = "yuv444p")
+        private static Func<(bool redirectStdin, bool redirectStdout), Process> PrepareProcess(EncodeSettings settings, string filename, string programName, string arguments)
         {
-            receiver.ErrorDataReceived += (_, e) =>
+            if (settings.onBeforeArguments != null)
             {
-                if (!string.IsNullOrWhiteSpace(e.Data))
-                    TryOutput(e.Data);
-            };
+                ArgumentsWindowOutputs outputs = settings.onBeforeArguments.Invoke(new()
+                {
+                    arguments = arguments,
+                    programName = programName
+                });
+                if (outputs.confirmed)
+                    arguments = outputs.arguments;
+            }
 
-            string arguments = settings.GetFFmpegArguments() +
-                        $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
-                        "-f yuv4mpegpipe -";
+            TryOutput(Path.GetFileName(filename) + " " + arguments);
 
-            TryOutput("ffmpeg.exe " + arguments);
-
-            Process ffmpeg = new Process()
+            return ((bool redirectStdin, bool redirectStdout) setup) => CreateProcess(filename, arguments, setup.redirectStdin, setup.redirectStdout);
+        }
+        private static Process CreateProcess(string filename, string arguments, bool redirectStdin, bool redirectStdout)
+        {
+            Process process = new Process()
             {
                 StartInfo = new()
                 {
-                    FileName = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"),
+                    FileName = filename,
                     Arguments = arguments,
                     UseShellExecute = false,
-                    RedirectStandardOutput = true,
+                    RedirectStandardInput = redirectStdin,
+                    RedirectStandardOutput = redirectStdout,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
                 },
                 EnableRaisingEvents = true
             };
-            ffmpeg.ErrorDataReceived += (_, e) =>
+            process.ErrorDataReceived += (_, e) =>
             {
                 if (!string.IsNullOrWhiteSpace(e.Data))
                     TryOutput(e.Data);
             };
+
+            return process;
+        }
+        private static async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt = "yuv444p")
+        {
+            string arguments = settings.GetFFmpegArguments() +
+                        $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
+                        "-f yuv4mpegpipe -";
+
+            Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", arguments).Invoke((false, true));
+            Process receiver = createReceiver.Invoke((true, false));
 
             receiver.Start();
             ffmpeg.Start();
@@ -90,6 +108,9 @@ namespace FAIC
 
             try
             {
+                if (receiver.HasExited)
+                    throw new Exception($"Receiver exited early.");
+
                 await ffmpeg.StandardOutput.BaseStream.CopyToAsync(
                     receiver.StandardInput.BaseStream,
                     BUFFER_SIZE,
@@ -99,10 +120,35 @@ namespace FAIC
 
                 await ffmpeg.WaitForExitAsync(token);
                 await receiver.WaitForExitAsync(token);
+
+                ffmpeg = null;
             }
             catch (OperationCanceledException)
             {
                 TryOutput("Encode cancelled by user.");
+            }
+            catch
+            {
+                throw;
+            }
+            finally
+            {
+                if (ffmpeg != null)
+                {
+                    try
+                    {
+                        if (!ffmpeg.HasExited)
+                            ffmpeg.Kill(entireProcessTree: true);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Process already exited
+                    }
+                    catch (System.ComponentModel.Win32Exception)
+                    {
+                        // Access denied or process already terminating
+                    }
+                }
             }
         }
         private static async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "")
@@ -119,25 +165,7 @@ namespace FAIC
                         arguments +
                         $"\"{targetOutput}\"";
 
-            TryOutput("ffmpeg.exe " + allArguments);
-
-            Process ffmpeg = new Process()
-            {
-                StartInfo = new()
-                {
-                    FileName = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"),
-                    Arguments = allArguments,
-                    UseShellExecute = false,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                },
-                EnableRaisingEvents = true
-            };
-            ffmpeg.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(e.Data))
-                    TryOutput(e.Data);
-            };
+            Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", allArguments).Invoke((false, false));
 
             ffmpeg.Start();
 
@@ -168,26 +196,17 @@ namespace FAIC
         {
             string repetition = settings.Repeats < 0 ? "infinite" : (settings.Repeats + 1).ToString();
             string arguments = $"--stdin --jobs all -q {Math.Max(settings.Quality, 1)} --repetition-count {repetition} \"{settings.OutputPath}\"";
-            TryOutput("avifenc.exe " + arguments);
-            Process avifenc = new Process()
-            {
-                StartInfo = new()
-                {
-                    FileName = Path.Combine(AppContext.BaseDirectory, "avifenc.exe"),
-                    Arguments = arguments,
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                },
-                EnableRaisingEvents = true
-            };
+
+            var createAvifenc = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "avifenc.exe"), "avifenc", arguments);
 
             try
             {
-                await EncodeWithFFmpegPipe(settings, avifenc, token, pixfmt: settings.Transparent ? "yuva444p" : "yuv444p");
+                await EncodeWithFFmpegPipe(settings, createAvifenc, token, pixfmt: settings.Transparent ? "yuva444p" : "yuv444p");
             }
-            catch { }
+            catch (Exception e)
+            {
+                TryOutput("Error " + e.Message);
+            }
             finally
             {
                 TryOutput("Complete!");
@@ -299,33 +318,12 @@ namespace FAIC
                 arguments += "-"; //trailing - indicates stdin input
             }
 
-            TryOutput("gifski.exe " + arguments);
-
-            Process gifski = new Process()
-            {
-                StartInfo = new()
-                {
-                    FileName = Path.Combine(AppContext.BaseDirectory, "gifski.exe"),
-                    Arguments = arguments,
-                    UseShellExecute = false,
-                    RedirectStandardInput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                },
-                EnableRaisingEvents = true
-            };
+            var createGifski = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "gifski.exe"), "gifski", arguments);
 
             if (settings.Transparent)
             {
-                gifski.ErrorDataReceived += (_, e) =>
-                {
-                    if (!string.IsNullOrWhiteSpace(e.Data))
-                        TryOutput(e.Data);
-                };
-
                 int frameDigits = (int)Math.Floor(Math.Log10((double)((settings.End - settings.Start) * settings.TargetFrameRate))) + 1;
-
-                gifski.StartInfo.WorkingDirectory = transparentTempFramesDirectory;
+                
                 try
                 {
                     Directory.CreateDirectory(transparentTempFramesDirectory);
@@ -333,6 +331,9 @@ namespace FAIC
                     await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"));
 
                     TryOutput("Done preparing frames.");
+
+                    Process gifski = createGifski.Invoke((false, false));
+                    gifski.StartInfo.WorkingDirectory = transparentTempFramesDirectory;
 
                     gifski.Start();
 
@@ -368,7 +369,7 @@ namespace FAIC
             {
                 try
                 {
-                    await EncodeWithFFmpegPipe(settings, gifski, token);
+                    await EncodeWithFFmpegPipe(settings, createGifski, token);
                 }
                 catch { }
                 finally

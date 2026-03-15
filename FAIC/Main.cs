@@ -380,6 +380,23 @@ namespace FAIC
                 _encodeTask = StartEncodeAsync(saveFileDialogue.FileName, _encodeCTS.Token);
             }
         }
+        public ArgumentsWindowOutputs DoArgumentsWindow(ArgumentsWindowInputs inputs)
+        {
+            ArgumentsWindowOutputs outputs = new()
+            {
+                confirmed = false
+            };
+            inputs.onConfirm = (data) =>
+            {
+                outputs = data;
+            };
+
+            using (var args = new CustomArguments(inputs))
+            {
+                args.ShowDialog(this);
+                return outputs;
+            }
+        }
         private async Task StartEncodeAsync(string outputPath, CancellationToken token)
         {
             commandLineOutput.Clear();
@@ -472,7 +489,8 @@ namespace FAIC
                     TargetFrameRate = fpsValue.Value,
                     Interpolate = interpolateSetting,
                     Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value,
-                    Transparent = transparentCheckbox.Checked
+                    Transparent = transparentCheckbox.Checked,
+                    onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null
                 };
 
                 switch (extension)

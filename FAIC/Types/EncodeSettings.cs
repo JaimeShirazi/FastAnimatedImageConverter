@@ -25,6 +25,7 @@
         public InterpolateSetting Interpolate;
         public int Repeats;
         public bool Transparent;
+        public Func<ArgumentsWindowInputs, ArgumentsWindowOutputs> onBeforeArguments;
         public static bool IsFormatTransparencySupported(string format)
         {
             string lowerFormat = format.ToLower();

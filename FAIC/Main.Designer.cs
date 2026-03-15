@@ -73,6 +73,9 @@ namespace FAIC
             settingsDivider3 = new Panel();
             transparentLabel = new Label();
             transparentCheckbox = new CheckBox();
+            settingsDivider4 = new Panel();
+            advancedLabel = new Label();
+            editArgumentsCheckbox = new CheckBox();
             mainSplit = new SplitContainer();
             videoPanelTable = new TableLayoutPanel();
             videoContainingPanel = new Panel();
@@ -200,7 +203,7 @@ namespace FAIC
             commandLineOutput.Margin = new Padding(2);
             commandLineOutput.Name = "commandLineOutput";
             commandLineOutput.ReadOnly = true;
-            commandLineOutput.Size = new Size(310, 155);
+            commandLineOutput.Size = new Size(310, 120);
             commandLineOutput.TabIndex = 0;
             commandLineOutput.Text = "";
             tooltips.SetToolTip(commandLineOutput, "Console output from the converter tools.");
@@ -216,7 +219,7 @@ namespace FAIC
             settingsGroupBox.Margin = new Padding(2, 2, 2, 0);
             settingsGroupBox.Name = "settingsGroupBox";
             settingsGroupBox.Padding = new Padding(2);
-            settingsGroupBox.Size = new Size(322, 345);
+            settingsGroupBox.Size = new Size(322, 380);
             settingsGroupBox.TabIndex = 0;
             settingsGroupBox.TabStop = false;
             settingsGroupBox.Text = "Settings";
@@ -253,11 +256,14 @@ namespace FAIC
             settingsTable.Controls.Add(settingsDivider3, 0, 12);
             settingsTable.Controls.Add(transparentLabel, 0, 13);
             settingsTable.Controls.Add(transparentCheckbox, 1, 13);
+            settingsTable.Controls.Add(settingsDivider4, 0, 14);
+            settingsTable.Controls.Add(advancedLabel, 0, 15);
+            settingsTable.Controls.Add(editArgumentsCheckbox, 1, 15);
             settingsTable.Dock = DockStyle.Fill;
             settingsTable.Location = new Point(2, 18);
             settingsTable.Margin = new Padding(2, 2, 2, 0);
             settingsTable.Name = "settingsTable";
-            settingsTable.RowCount = 14;
+            settingsTable.RowCount = 16;
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
@@ -272,8 +278,9 @@ namespace FAIC
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
-            settingsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            settingsTable.Size = new Size(318, 325);
+            settingsTable.RowStyles.Add(new RowStyle());
+            settingsTable.RowStyles.Add(new RowStyle());
+            settingsTable.Size = new Size(318, 360);
             settingsTable.TabIndex = 0;
             // 
             // resizeLabel
@@ -700,6 +707,43 @@ namespace FAIC
             transparentCheckbox.Text = "Transparent";
             transparentCheckbox.UseVisualStyleBackColor = true;
             // 
+            // settingsDivider4
+            // 
+            settingsDivider4.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            settingsTable.SetColumnSpan(settingsDivider4, 2);
+            settingsDivider4.Location = new Point(2, 327);
+            settingsDivider4.Margin = new Padding(2);
+            settingsDivider4.MaximumSize = new Size(0, 8);
+            settingsDivider4.MinimumSize = new Size(0, 8);
+            settingsDivider4.Name = "settingsDivider4";
+            settingsDivider4.Size = new Size(314, 8);
+            settingsDivider4.TabIndex = 25;
+            // 
+            // advancedLabel
+            // 
+            advancedLabel.AutoSize = true;
+            advancedLabel.Dock = DockStyle.Fill;
+            advancedLabel.Location = new Point(2, 337);
+            advancedLabel.Margin = new Padding(2, 0, 2, 0);
+            advancedLabel.MinimumSize = new Size(45, 0);
+            advancedLabel.Name = "advancedLabel";
+            advancedLabel.Size = new Size(94, 23);
+            advancedLabel.TabIndex = 26;
+            advancedLabel.Text = "Advanced";
+            advancedLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // editArgumentsCheckbox
+            // 
+            editArgumentsCheckbox.AutoSize = true;
+            editArgumentsCheckbox.Dock = DockStyle.Fill;
+            editArgumentsCheckbox.Location = new Point(100, 339);
+            editArgumentsCheckbox.Margin = new Padding(2);
+            editArgumentsCheckbox.Name = "editArgumentsCheckbox";
+            editArgumentsCheckbox.Size = new Size(216, 19);
+            editArgumentsCheckbox.TabIndex = 27;
+            editArgumentsCheckbox.Text = "Edit Arguments";
+            editArgumentsCheckbox.UseVisualStyleBackColor = true;
+            // 
             // mainSplit
             // 
             mainSplit.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -923,11 +967,11 @@ namespace FAIC
             commandLinePaddingPanel.BackColor = SystemColors.Window;
             commandLinePaddingPanel.Controls.Add(commandLineOutput);
             commandLinePaddingPanel.Dock = DockStyle.Fill;
-            commandLinePaddingPanel.Location = new Point(2, 349);
+            commandLinePaddingPanel.Location = new Point(2, 384);
             commandLinePaddingPanel.Margin = new Padding(2);
             commandLinePaddingPanel.Name = "commandLinePaddingPanel";
             commandLinePaddingPanel.Padding = new Padding(6);
-            commandLinePaddingPanel.Size = new Size(322, 167);
+            commandLinePaddingPanel.Size = new Size(322, 132);
             commandLinePaddingPanel.TabIndex = 1;
             // 
             // actionsPanel
@@ -1059,5 +1103,8 @@ namespace FAIC
         private Panel lastFrameContainer;
         private Panel fpsContainer;
         private Panel repeatContainer;
+        private Label advancedLabel;
+        private CheckBox editArgumentsCheckbox;
+        private Panel settingsDivider4;
     }
 }
