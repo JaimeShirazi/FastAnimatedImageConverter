@@ -2,6 +2,10 @@
 {
     public struct EncodeSettings
     {
+        public enum TuningSetting
+        {
+            Fast, Best
+        }
         public enum ResampleSetting
         {
             None, Bilinear, Lanczos, Spline36
@@ -19,6 +23,7 @@
         public int Quality;
         public int Width, Height;
         public ResampleSetting Resample;
+        public TuningSetting Tuning;
         public decimal Start, End;
         public double Speed;
         public decimal TargetFrameRate;
@@ -90,7 +95,7 @@
                 }
             }
 
-            return "-y -threads 0 " +
+            return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 " +
                 $"-ss {Start} -to {End} " +
                 decoderOverride +
                 $"-i \"{InputPath}\" " +

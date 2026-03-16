@@ -110,7 +110,6 @@ namespace FAIC
                 resizeDimensionLabel.Text = info.Width > info.Height ? "Width" : (info.Width == info.Height ? "Size" : "Height");
                 resizeDimensionValue.Value = Math.Max(info.Width, info.Height);
             }
-            samplingLayoutPanel.Enabled = false;
             resizeSlider.Value = 100;
             playhead.Value = 0;
             playhead.Maximum = (int)(1000 * info.Length);
@@ -263,8 +262,6 @@ namespace FAIC
                 (resizeDimensionValue.Value / GetMediaLargestDimension()) * (decimal)100.0,
                 (decimal)0.01
                 );
-
-            samplingLayoutPanel.Enabled = percentageSize != 100;
 
             string formattedPercentage = percentageSize switch
             {
@@ -431,15 +428,16 @@ namespace FAIC
                 int height = widthLarger ? smallestDimension : (int)resizeDimensionValue.Value;
 
                 EncodeSettings.ResampleSetting resampleSetting;
+                EncodeSettings.TuningSetting tuningSetting = processingFastRadio.Checked ? EncodeSettings.TuningSetting.Fast : EncodeSettings.TuningSetting.Best;
                 if ((int)resizeDimensionValue.Value == GetMediaLargestDimension())
                 {
                     resampleSetting = EncodeSettings.ResampleSetting.None;
                 }
-                else if (sampleFastRadio.Checked)
+                else if (processingFastRadio.Checked)
                 {
                     resampleSetting = EncodeSettings.ResampleSetting.Bilinear;
                 }
-                else if (sampleBestRadio.Checked)
+                else if (processingBestRadio.Checked)
                 {
                     if ((int)resizeDimensionValue.Value < GetMediaLargestDimension())
                     {
@@ -452,7 +450,7 @@ namespace FAIC
                 }
                 else
                 {
-                    AppendLog("Failed to determine resample filter mode. Defaulting to bilinear.");
+                    AppendLog("Failed to determine tuning. Defaulting to fast.");
                     resampleSetting = EncodeSettings.ResampleSetting.Bilinear;
                 }
 
@@ -485,6 +483,7 @@ namespace FAIC
                     Width = width,
                     Height = height,
                     Resample = resampleSetting,
+                    Tuning = tuningSetting,
                     Speed = Speeds[speedSlider.Value],
                     TargetFrameRate = fpsValue.Value,
                     Interpolate = interpolateSetting,
@@ -493,25 +492,32 @@ namespace FAIC
                     onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null
                 };
 
+                Func<ConversionWindow.Inputs, ConversionWindow> createWindow = (inputs) =>
+                {
+                    ConversionWindow window = new ConversionWindow(inputs, _encodeCTS);
+                    window.Show(this);
+                    return window;
+                };
+
                 switch (extension)
                 {
                     case "avif":
                     default:
                         if (extension != "avif") AppendLog("Error: Unrecognised extension. Outputting as AVIF.");
-                        await Program.EncodeAVIF(settings, token);
+                        await Program.EncodeAVIF(settings, createWindow, token);
                         break;
                     case "gif":
-                        await Program.EncodeGIF(settings, token);
+                        await Program.EncodeGIF(settings, createWindow, token);
                         break;
                     case "jxl":
-                        await Program.EncodeJXL(settings, token);
+                        await Program.EncodeJXL(settings, createWindow, token);
                         break;
                     case "apng":
                     case "png":
-                        await Program.EncodeAPNG(settings, token);
+                        await Program.EncodeAPNG(settings, createWindow, token);
                         break;
                     case "webp":
-                        await Program.EncodeWebP(settings, token);
+                        await Program.EncodeWebP(settings, createWindow, token);
                         break;
                 }
 

@@ -9,6 +9,27 @@ namespace FAIC
 {
     internal static class Program
     {
+        #region Active job tracker
+        private static List<Guid> activeJobs = new();
+        public static void RegisterJob(Guid id)
+        {
+            if (activeJobs.Contains(id)) return;
+            activeJobs.Add(id);
+        }
+        public static void DeregisterJob(Guid id)
+        {
+            if (!activeJobs.Contains(id)) return;
+            activeJobs.Remove(id);
+        }
+        public static int GetJobIndex(Guid id)
+        {
+            if (activeJobs.Contains(id))
+            {
+                return activeJobs.IndexOf(id);
+            }
+            return -1;
+        }
+        #endregion
         public static void TryOutput(string text) => latest?.Write(text);
         private static IConsole latest;
         public static void UpdateConsole(IConsole console) => latest = console;
@@ -59,15 +80,10 @@ namespace FAIC
                 },
                 EnableRaisingEvents = true
             };
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(e.Data))
-                    TryOutput(e.Data);
-            };
 
             return process;
         }
-        private static async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt = "yuv444p")
+        private static async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, Func<ConversionWindow.Inputs, ConversionWindow> createWindow, CancellationToken token, string pixfmt = "yuv444p")
         {
             string arguments = settings.GetFFmpegArguments() +
                         $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
@@ -75,6 +91,14 @@ namespace FAIC
 
             Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", arguments).Invoke((false, true));
             Process receiver = createReceiver.Invoke((true, false));
+
+            ConversionWindow window = createWindow.Invoke(new()
+            {
+                expectedLength = (double)(settings.End - settings.Start),
+                ffmpeg = ffmpeg,
+                outputPath = settings.OutputPath
+            });
+            window.RegisterPipe(receiver);
 
             receiver.Start();
             ffmpeg.Start();
@@ -121,6 +145,8 @@ namespace FAIC
                 await ffmpeg.WaitForExitAsync(token);
                 await receiver.WaitForExitAsync(token);
 
+                window.Complete();
+
                 ffmpeg = null;
             }
             catch (OperationCanceledException)
@@ -151,7 +177,7 @@ namespace FAIC
                 }
             }
         }
-        private static async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "")
+        private static async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, Func<ConversionWindow.Inputs, ConversionWindow> createWindow, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "")
         {
             int loops = Math.Min(settings.Repeats + 1, 0);
             string targetOutput = string.IsNullOrEmpty(outputPath) ? settings.OutputPath : outputPath;
@@ -166,6 +192,13 @@ namespace FAIC
                         $"\"{targetOutput}\"";
 
             Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", allArguments).Invoke((false, false));
+
+            ConversionWindow window = createWindow.Invoke(new()
+            {
+                expectedLength = (double)(settings.End - settings.Start),
+                ffmpeg = ffmpeg,
+                outputPath = settings.OutputPath
+            });
 
             ffmpeg.Start();
 
@@ -184,7 +217,7 @@ namespace FAIC
             try
             {
                 await ffmpeg.WaitForExitAsync(token);
-
+                window.Complete();
                 TryOutput("Complete!");
             }
             catch (OperationCanceledException)
@@ -192,7 +225,7 @@ namespace FAIC
                 TryOutput("Encode cancelled by user.");
             }
         }
-        public static async Task EncodeAVIF(EncodeSettings settings, CancellationToken token)
+        public static async Task EncodeAVIF(EncodeSettings settings, Func<ConversionWindow.Inputs, ConversionWindow> createWindow, CancellationToken token)
         {
             string repetition = settings.Repeats < 0 ? "infinite" : (settings.Repeats + 1).ToString();
             string arguments = $"--stdin --jobs all -q {Math.Max(settings.Quality, 1)} --repetition-count {repetition} \"{settings.OutputPath}\"";
@@ -201,7 +234,7 @@ namespace FAIC
 
             try
             {
-                await EncodeWithFFmpegPipe(settings, createAvifenc, token, pixfmt: settings.Transparent ? "yuva444p" : "yuv444p");
+                await EncodeWithFFmpegPipe(settings, createAvifenc, createWindow, token, pixfmt: settings.Transparent ? "yuva444p" : "yuv444p");
             }
             catch (Exception e)
             {
@@ -212,7 +245,7 @@ namespace FAIC
                 TryOutput("Complete!");
             }
         }
-        public static async Task EncodeWebP(EncodeSettings settings, CancellationToken token)
+        public static async Task EncodeWebP(EncodeSettings settings, Func<ConversionWindow.Inputs, ConversionWindow> createWindow, CancellationToken token)
         {
             string arguments = "-c:v libwebp_anim ";
 
@@ -230,9 +263,9 @@ namespace FAIC
             TryOutput("WARNING: progress does not currently display for WebP, but it is still processing. This is an issue with ffmpeg. It will say 0 frames, but it is still processing, please wait until you see the complete message.");
             TryOutput("");
 
-            await EncodeWithFFmpeg(settings, arguments, token, pixfmt: settings.Transparent ? "yuva420p" : "yuv420p");
+            await EncodeWithFFmpeg(settings, arguments, createWindow, token, pixfmt: settings.Quality >= 100 ? "bgra" : (settings.Transparent ? "yuva420p" : "yuv420p"));
         }
-        public static async Task EncodeJXL(EncodeSettings settings, CancellationToken token)
+        public static async Task EncodeJXL(EncodeSettings settings, Func<ConversionWindow.Inputs, ConversionWindow> createWindow, CancellationToken token)
         {
             if (settings.Repeats >= 0) TryOutput("WARNING: Repeat count not currently supported for JXL. Output file will loop indefinitely.");
 
@@ -241,17 +274,28 @@ namespace FAIC
             double q = Math.Clamp(settings.Quality, 0, 100) / 100.0;
             const double MAX_DISTANCE = 15.0;
             int jxlDistance = (int)Math.Round(MAX_DISTANCE * Math.Pow(1.0 - q, 2.0));
-            int jxlEffort = settings.Quality < 50
-                ? (settings.Resample == EncodeSettings.ResampleSetting.Bilinear ? 5 : 7) //Take a hint from if the user is rescaling bilinearly (fast) or not (best/no resize)
-                : 7;
+            int jxlEffort = settings.Quality switch
+            {
+                < 50 => settings.Tuning switch
+                {
+                    EncodeSettings.TuningSetting.Best => 7,
+                    EncodeSettings.TuningSetting.Fast or _ => 5
+                },
+                > 90 => settings.Tuning switch
+                {
+                    EncodeSettings.TuningSetting.Best => 9,
+                    EncodeSettings.TuningSetting.Fast or _ => 7
+                },
+                _ => 7
+            };
 
             arguments += $"-distance {jxlDistance} -effort {jxlEffort} ";
 
             arguments += "-f rawvideo ";
 
-            await EncodeWithFFmpeg(settings, arguments, token);
+            await EncodeWithFFmpeg(settings, arguments, createWindow, token);
         }
-        public static async Task EncodeAPNG(EncodeSettings settings, CancellationToken token)
+        public static async Task EncodeAPNG(EncodeSettings settings, Func<ConversionWindow.Inputs, ConversionWindow> createWindow, CancellationToken token)
         {
             string playsFormat = settings.Repeats < 0 ? "0" : (settings.Repeats + 1).ToString();
             string arguments = $"-plays {playsFormat} ";
@@ -261,9 +305,9 @@ namespace FAIC
             int apngCompression = (int)Math.Round(9 * (1.0 - settings.Quality / 100.0));
             arguments += $"-compression_level {apngCompression} ";
 
-            await EncodeWithFFmpeg(settings, arguments, token, omitLoops: true);
+            await EncodeWithFFmpeg(settings, arguments, createWindow, token, omitLoops: true);
         }
-        public static async Task EncodeGIF(EncodeSettings settings, CancellationToken token)
+        public static async Task EncodeGIF(EncodeSettings settings, Func<ConversionWindow.Inputs, ConversionWindow> createWindow, CancellationToken token)
         {
             if (settings.Transparent)
             {
@@ -328,7 +372,7 @@ namespace FAIC
                 {
                     Directory.CreateDirectory(transparentTempFramesDirectory);
 
-                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"));
+                    await EncodeWithFFmpeg(settings, "", createWindow, token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"));
 
                     TryOutput("Done preparing frames.");
 
@@ -369,7 +413,7 @@ namespace FAIC
             {
                 try
                 {
-                    await EncodeWithFFmpegPipe(settings, createGifski, token);
+                    await EncodeWithFFmpegPipe(settings, createGifski, createWindow, token);
                 }
                 catch { }
                 finally
