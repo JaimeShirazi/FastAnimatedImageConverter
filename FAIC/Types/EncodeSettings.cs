@@ -1,4 +1,6 @@
-﻿namespace FAIC.Types
+﻿using static FAIC.Types.EncodeSettings;
+
+namespace FAIC.Types
 {
     public struct EncodeSettings
     {
@@ -17,6 +19,7 @@
         public string InputPath;
         public string InputFormat;
         public string OutputPath;
+        public ConvertJobTarget OutputFormat;
         /// <summary>
         /// From 0 to 100
         /// </summary>
@@ -31,6 +34,43 @@
         public int Repeats;
         public bool Transparent;
         public Func<ArgumentsWindowInputs, ArgumentsWindowOutputs> onBeforeArguments;
+        public EncodeSettings(int largestTargetDimension, int largestOriginalDimension, bool preferFast, bool preferBest)
+        {
+            if (preferFast)
+            {
+                Tuning = TuningSetting.Fast;
+                if (largestTargetDimension == largestOriginalDimension)
+                {
+                    Resample = ResampleSetting.None;
+                }
+                else
+                {
+                    Resample = ResampleSetting.Bilinear;
+                }
+            }
+            else if (preferBest)
+            {
+                Tuning = TuningSetting.Best;
+                if (largestTargetDimension == largestOriginalDimension)
+                {
+                    Resample = ResampleSetting.None;
+                }
+                else if (largestTargetDimension < largestOriginalDimension)
+                {
+                    Resample = ResampleSetting.Lanczos;
+                }
+                else
+                {
+                    Resample = ResampleSetting.Spline36;
+                }
+            }
+            else
+            {
+                Program.TryOutput(ConsoleMessageType.Warning, "Failed to determine tuning. Defaulting to fast.");
+                Tuning = TuningSetting.Fast;
+                Resample = ResampleSetting.Bilinear;
+            }
+        }
         public static bool IsFormatTransparencySupported(string format)
         {
             string lowerFormat = format.ToLower();

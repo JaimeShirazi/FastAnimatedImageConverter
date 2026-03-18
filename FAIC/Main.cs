@@ -405,99 +405,69 @@ namespace FAIC
 
             string extension = Path.GetExtension(outputPath).TrimStart('.').ToLowerInvariant();
 
+            switch (extension)
+            {
+                case "gif":
+                    if (fpsValue.Value > 100)
+                    {
+                        AppendLog("GIF does not support >100fps. Clamping to 100.");
+                        if (GetSourceMediaFrameRate() > 100 && fpsSetting.SelectedIndex == 0)
+                        {
+                            fpsSetting.SelectedIndex = 1;
+                        }
+                        fpsValue.Value = 100;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
             try
             {
-                convertButton.Enabled = false;
-                cancelButton.Enabled = true;
-
-                switch (extension)
-                {
-                    case "gif":
-                        if (fpsValue.Value > 100)
-                        {
-                            AppendLog("GIF does not support >100fps. Clamping to 100.");
-                            if (GetSourceMediaFrameRate() > 100 && fpsSetting.SelectedIndex == 0)
-                            {
-                                fpsSetting.SelectedIndex = 1;
-                            }
-                            fpsValue.Value = 100;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-
                 int smallestDimension = (int)Math.Round(GetMediaSmallestDimension() * (resizeDimensionValue.Value / GetMediaLargestDimension()));
                 bool widthLarger = IsMediaWidthLarger();
                 int width = widthLarger ? (int)resizeDimensionValue.Value : smallestDimension;
                 int height = widthLarger ? smallestDimension : (int)resizeDimensionValue.Value;
 
-                EncodeSettings.ResampleSetting resampleSetting;
-                EncodeSettings.TuningSetting tuningSetting = processingFastRadio.Checked ? EncodeSettings.TuningSetting.Fast : EncodeSettings.TuningSetting.Best;
-                if ((int)resizeDimensionValue.Value == GetMediaLargestDimension())
-                {
-                    resampleSetting = EncodeSettings.ResampleSetting.None;
-                }
-                else if (processingFastRadio.Checked)
-                {
-                    resampleSetting = EncodeSettings.ResampleSetting.Bilinear;
-                }
-                else if (processingBestRadio.Checked)
-                {
-                    if ((int)resizeDimensionValue.Value < GetMediaLargestDimension())
-                    {
-                        resampleSetting = EncodeSettings.ResampleSetting.Lanczos;
-                    }
-                    else
-                    {
-                        resampleSetting = EncodeSettings.ResampleSetting.Spline36;
-                    }
-                }
-                else
-                {
-                    AppendLog("Failed to determine tuning. Defaulting to fast.");
-                    resampleSetting = EncodeSettings.ResampleSetting.Bilinear;
-                }
-
-                EncodeSettings.InterpolateSetting interpolateSetting;
-                switch (fpsSetting.SelectedIndex)
-                {
-                    case 0:
-                        interpolateSetting = EncodeSettings.InterpolateSetting.None;
-                        break;
-                    case 1:
-                        interpolateSetting = EncodeSettings.InterpolateSetting.Nearest;
-                        break;
-                    case 2:
-                        interpolateSetting = EncodeSettings.InterpolateSetting.Blended;
-                        break;
-                    default:
-                        AppendLog("Unknown frame rate mode. Defaulting to Same.");
-                        interpolateSetting = EncodeSettings.InterpolateSetting.None;
-                        break;
-                }
-
-                EncodeSettings settings = new EncodeSettings()
+                EncodeSettings settings = new EncodeSettings((int)resizeDimensionValue.Value, GetMediaLargestDimension(), processingFastRadio.Checked, processingBestRadio.Checked)
                 {
                     InputPath = inputPath,
                     InputFormat = latestInfo?.Codec ?? "",
                     OutputPath = outputPath,
+                    OutputFormat = extension switch
+                    {
+                        "avif" => ConvertJobTarget.AVIF,
+                        "gif" => ConvertJobTarget.GIF,
+                        "jxl" => ConvertJobTarget.JXL,
+                        "apng" or "png" => ConvertJobTarget.APNG,
+                        "webp" => ConvertJobTarget.WEBP,
+                        _ => throw new System.NotImplementedException($"Unrecognised target extension \"{extension}\"")
+                    },
                     Quality = qualitySlider.Value,
                     Start = firstFrameInput.Value,
                     End = lastFrameInput.Value,
                     Width = width,
                     Height = height,
-                    Resample = resampleSetting,
-                    Tuning = tuningSetting,
                     Speed = Speeds[speedSlider.Value],
                     TargetFrameRate = fpsValue.Value,
-                    Interpolate = interpolateSetting,
+                    Interpolate = fpsSetting.SelectedIndex switch
+                    {
+                        0 => EncodeSettings.InterpolateSetting.None,
+                        1 => EncodeSettings.InterpolateSetting.Nearest,
+                        2 => EncodeSettings.InterpolateSetting.Blended,
+                        _ => throw new System.NotImplementedException($"Unrecognised FPS setting target option number ({fpsSetting.SelectedIndex})")
+                    },
                     Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value,
                     Transparent = transparentCheckbox.Checked,
                     onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null
                 };
 
-                Func<ConversionWindow.Inputs, ConversionWindow> createWindow = (inputs) =>
+                ConversionWindow conversion = new ConversionWindow(settings);
+                conversion.Show(this);
+
+
+
+                /*Func<ConversionWindow.Inputs, ConversionWindow> createWindow = (inputs) =>
                 {
                     ConversionWindow window = new ConversionWindow(inputs, _encodeCTS);
                     window.Show(this);
@@ -524,22 +494,22 @@ namespace FAIC
                     case "webp":
                         await Program.EncodeWebP(settings, createWindow, token);
                         break;
-                }
+                }*/
 
             }
-            catch (OperationCanceledException)
+            /*catch (OperationCanceledException)
             {
                 // user cancelled — fine
-            }
+            }*/
             catch (Exception ex)
             {
-                AppendLog($"Encode Failed: {ex.ToString}");
+                Program.TryOutput(ConsoleMessageType.Error, ex.Message);
             }
-            finally
+            /*finally
             {
                 convertButton.Enabled = true;
                 cancelButton.Enabled = false;
-            }
+            }*/
         }
         private void cancelButton_Click(object sender, EventArgs e)
         {

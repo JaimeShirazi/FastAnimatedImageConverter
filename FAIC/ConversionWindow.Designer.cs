@@ -188,8 +188,6 @@
             AcceptButton = closeButton;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            AutoSize = true;
-            AutoSizeMode = AutoSizeMode.GrowAndShrink;
             CancelButton = cancelButton;
             ClientSize = new Size(404, 95);
             Controls.Add(tableLayoutPanel1);

@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using FAIC.Types;
+using System.Diagnostics;
+using System.IO;
 
 namespace FAIC
 {
@@ -6,20 +8,101 @@ namespace FAIC
     {
         public struct Inputs
         {
-            public Process ffmpeg;
             public string outputPath;
             public double expectedLength;
+            public ConvertJobTarget target;
         }
 
         private Guid jobId;
         private readonly Stopwatch stopwatch = Stopwatch.StartNew();
         private readonly System.Windows.Forms.Timer timer = new();
         private string outputPath;
-        private Dictionary<string, string> progressAccum = new();
+
+        private Task conversionTask;
         private CancellationTokenSource cancellationTokenSource;
         private double expectedLength;
+        
+        
+        public ConversionWindow(EncodeSettings settings)
+        {
+            InitializeComponent();
+            AutoSize = false;
+            MinimumSize = new Size(Width, Height);
+            int widest = Screen.PrimaryScreen.WorkingArea.Width;
+            for (int i = 0; i < Screen.AllScreens.Length; i++)
+            {
+                widest = Math.Max(Screen.AllScreens[i].WorkingArea.Width, widest);
+            }
+            MaximumSize = new Size(widest, Height);
+            FormBorderStyle = FormBorderStyle.Sizable;
+
+            cancellationTokenSource = new();
+
+            jobId = Guid.NewGuid();
+            Program.RegisterJob(jobId);
+            outputPath = settings.OutputPath;
+            expectedLength = (double)(settings.End - settings.Start);
+            timer.Interval = 1000;
+            timer.Tick += (_, _) =>
+            {
+                double seconds = Math.Truncate(stopwatch.Elapsed.TotalSeconds);
+                Text = $"Conversion Job {Program.GetJobIndex(jobId) + 1} (busy for {seconds}s)";
+            };
+            timer.Start();
+            isUnknown = settings.OutputFormat == ConvertJobTarget.WEBP;
+
+            conversionTask = settings.OutputFormat switch
+            {
+                ConvertJobTarget.AVIF => EncodeAVIF(settings, cancellationTokenSource.Token),
+                ConvertJobTarget.JXL => EncodeJXL(settings, cancellationTokenSource.Token),
+                ConvertJobTarget.WEBP => EncodeWebP(settings, cancellationTokenSource.Token),
+                ConvertJobTarget.APNG => EncodeAPNG(settings, cancellationTokenSource.Token),
+                ConvertJobTarget.GIF => EncodeGIF(settings, cancellationTokenSource.Token),
+            };
+        }
+        private void TryOutput(string packet) => Program.TryOutput(jobId, packet);
+        private static void TryOutput(string packet, ConsoleMessageType type) => Program.TryOutput(type, packet);
+
+        #region Progress handling
+        private Dictionary<string, string> progressAccum = new();
         private bool isPipe;
+        private bool isUnknown;
         private bool complete;
+
+        #region Progress called from within
+        public void RegisterFfmpeg(Process ffmpeg)
+        {
+            ffmpeg.ErrorDataReceived += (_, e) =>
+            {
+                TryReceiveUpdate(e.Data);
+            };
+        }
+        public void RegisterPipe(Process pipe)
+        {
+            isPipe = true;
+            pipe.ErrorDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                    TryOutput(e.Data);
+            };
+        }
+        public void Complete()
+        {
+            complete = true;
+            closeButton.Enabled = true;
+            closeAndShowButton.Enabled = true;
+            cancelButton.Enabled = false;
+            encodeProgressBar.Style = ProgressBarStyle.Blocks;
+            { //Hack to instantly set the position of the progress bar
+                encodeProgressBar.Value = encodeProgressBar.Maximum;
+                encodeProgressBar.Value -= 1;
+                encodeProgressBar.Value += 1;
+            }
+            frameStatsLabel.Text = "Done";
+            stopwatch.Stop();
+        }
+        #endregion
+
         private static bool IsFfmpegProgressKey(string key)
         {
             return key switch
@@ -39,51 +122,6 @@ namespace FAIC
                 _ => false
             };
         }
-        public ConversionWindow(Inputs inputs, CancellationTokenSource cancellationTokenSource)
-        {
-            InitializeComponent();
-            AutoSize = false;
-            MinimumSize = new Size(Width, Height);
-            int widest = Screen.PrimaryScreen.WorkingArea.Width;
-            for (int i = 0; i < Screen.AllScreens.Length; i++)
-            {
-                widest = Math.Max(Screen.AllScreens[i].WorkingArea.Width, widest);
-            }
-            Program.TryOutput($"Widest: {widest}");
-            MaximumSize = new Size(widest, Height);
-            FormBorderStyle = FormBorderStyle.Sizable;
-
-            jobId = Guid.NewGuid();
-            Program.RegisterJob(jobId);
-            outputPath = inputs.outputPath;
-            expectedLength = inputs.expectedLength;
-            timer.Interval = 1000;
-            timer.Tick += (_, _) =>
-            {
-                double seconds = Math.Truncate(stopwatch.Elapsed.TotalSeconds);
-                Text = $"Conversion Job {Program.GetJobIndex(jobId) + 1} (busy for {seconds}s)";
-            };
-            timer.Start();
-            inputs.ffmpeg.ErrorDataReceived += (_, e) =>
-            {
-                TryReceiveUpdate(e.Data);
-            };
-            this.cancellationTokenSource = cancellationTokenSource;
-        }
-        public void RegisterPipe(Process pipe)
-        {
-            isPipe = true;
-            pipe.ErrorDataReceived += (_, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(e.Data))
-                    TryOutput(e.Data);
-            };
-        }
-        private void TryOutput(string packet)
-        {
-            Program.TryOutput(jobId, packet);
-        }
-        #region progress handling
         private void TryReceiveUpdate(string packet)
         {
             if (string.IsNullOrEmpty(packet)) return;
@@ -128,7 +166,13 @@ namespace FAIC
         {
             if (!progressAccum.ContainsKey("progress")) return;
 
-            if (progressAccum["progress"].Trim().ToLower() == "end")
+            if (isUnknown)
+            {
+                buffer.FrameStatsLabel = "Converting...";
+                buffer.EncodeProgressBarStyle = ProgressBarStyle.Marquee;
+                buffer.TimeMs = expectedLength * 1000000;
+            }
+            else if (progressAccum["progress"].Trim().ToLower() == "end")
             {
                 buffer.FrameStatsLabel = "Finalising...";
                 buffer.EncodeProgressBarStyle = ProgressBarStyle.Marquee;
@@ -190,25 +234,16 @@ namespace FAIC
             }
         }
         #endregion
-        public void Complete()
-        {
-            complete = true;
-            closeButton.Enabled = true;
-            closeAndShowButton.Enabled = true;
-            cancelButton.Enabled = false;
-            encodeProgressBar.Style = ProgressBarStyle.Blocks;
-            { //Hack to instantly set the position of the progress bar
-                encodeProgressBar.Value = encodeProgressBar.Maximum;
-                encodeProgressBar.Value -= 1;
-                encodeProgressBar.Value += 1;
-            }
-            stopwatch.Stop();
-        }
-        protected override void OnFormClosing(FormClosingEventArgs e)
+
+        #region Cancel/close panel
+        protected override async void OnFormClosing(FormClosingEventArgs e)
         {
             if (!complete)
             {
                 cancellationTokenSource?.Cancel();
+
+                if (conversionTask != null)
+                    await conversionTask;
             }
 
             base.OnFormClosing(e);
@@ -236,5 +271,373 @@ namespace FAIC
         {
             Close();
         }
+        #endregion
+
+        #region Encode handling
+        const int BUFFER_SIZE = 32 * 1024 * 1024; //32MB
+        private Func<(bool redirectStdin, bool redirectStdout), Process> PrepareProcess(EncodeSettings settings, string filename, string programName, string arguments)
+        {
+            if (settings.onBeforeArguments != null)
+            {
+                ArgumentsWindowOutputs outputs = settings.onBeforeArguments.Invoke(new()
+                {
+                    arguments = arguments,
+                    programName = programName
+                });
+                if (outputs.confirmed)
+                    arguments = outputs.arguments;
+            }
+
+            TryOutput(Path.GetFileName(filename) + " " + arguments);
+
+            return ((bool redirectStdin, bool redirectStdout) setup) => CreateProcess(filename, arguments, setup.redirectStdin, setup.redirectStdout);
+        }
+        private Process CreateProcess(string filename, string arguments, bool redirectStdin, bool redirectStdout)
+        {
+            Process process = new Process()
+            {
+                StartInfo = new()
+                {
+                    FileName = filename,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    RedirectStandardInput = redirectStdin,
+                    RedirectStandardOutput = redirectStdout,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                },
+                EnableRaisingEvents = true
+            };
+
+            return process;
+        }
+        private async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt = "yuv444p")
+        {
+            string arguments = settings.GetFFmpegArguments() +
+                        $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
+                        "-f yuv4mpegpipe -";
+
+            Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", arguments).Invoke((false, true));
+            RegisterFfmpeg(ffmpeg);
+            Process receiver = createReceiver.Invoke((true, false));
+            RegisterPipe(receiver);
+
+            receiver.Start();
+            ffmpeg.Start();
+
+            ffmpeg.BeginErrorReadLine();
+            receiver.BeginErrorReadLine();
+
+            using var registration = token.Register(() =>
+            {
+                try
+                {
+                    if (!receiver.HasExited)
+                        receiver.StandardInput.Close();
+                }
+                catch { }
+
+                try
+                {
+                    if (!ffmpeg.HasExited)
+                        ffmpeg.Kill(entireProcessTree: true);
+                }
+                catch { }
+
+                try
+                {
+                    if (!receiver.HasExited)
+                        receiver.Kill(entireProcessTree: true);
+                }
+                catch { }
+            });
+
+            try
+            {
+                if (receiver.HasExited)
+                    throw new Exception($"Receiver exited early.");
+
+                await ffmpeg.StandardOutput.BaseStream.CopyToAsync(
+                    receiver.StandardInput.BaseStream,
+                    BUFFER_SIZE,
+                    token);
+
+                receiver.StandardInput.Close();
+
+                await ffmpeg.WaitForExitAsync(token);
+                await receiver.WaitForExitAsync(token);
+
+                Complete();
+
+                ffmpeg = null;
+            }
+            catch (OperationCanceledException)
+            {
+                TryOutput("Encode cancelled by user.");
+            }
+            catch
+            {
+                throw;
+            }
+            finally
+            {
+                if (ffmpeg != null)
+                {
+                    try
+                    {
+                        if (!ffmpeg.HasExited)
+                            ffmpeg.Kill(entireProcessTree: true);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Process already exited
+                    }
+                    catch (System.ComponentModel.Win32Exception)
+                    {
+                        // Access denied or process already terminating
+                    }
+                }
+            }
+        }
+        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "")
+        {
+            int loops = Math.Min(settings.Repeats + 1, 0);
+            string targetOutput = string.IsNullOrEmpty(outputPath) ? settings.OutputPath : outputPath;
+
+            string allArguments = settings.GetFFmpegArguments() +
+                        $"-r {settings.TargetFrameRate} ";
+
+            if (!omitLoops) allArguments += $"-loop {loops} ";
+
+            allArguments += $"-threads 0 -pix_fmt {pixfmt} " +
+                        arguments +
+                        $"\"{targetOutput}\"";
+
+            Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", allArguments).Invoke((false, false));
+            RegisterFfmpeg(ffmpeg);
+
+            ffmpeg.Start();
+
+            ffmpeg.BeginErrorReadLine();
+
+            using var registration = token.Register(() =>
+            {
+                try
+                {
+                    if (!ffmpeg.HasExited)
+                        ffmpeg.Kill(entireProcessTree: true);
+                }
+                catch { }
+            });
+
+            try
+            {
+                await ffmpeg.WaitForExitAsync(token);
+                Complete();
+                TryOutput("Complete!");
+            }
+            catch (OperationCanceledException)
+            {
+                TryOutput("Encode cancelled by user.");
+            }
+        }
+        public async Task EncodeAVIF(EncodeSettings settings, CancellationToken token)
+        {
+            string repetition = settings.Repeats < 0 ? "infinite" : (settings.Repeats + 1).ToString();
+            string arguments = $"--stdin --jobs all -q {Math.Max(settings.Quality, 1)} --repetition-count {repetition} \"{settings.OutputPath}\"";
+
+            var createAvifenc = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "avifenc.exe"), "avifenc", arguments);
+
+            try
+            {
+                await EncodeWithFFmpegPipe(settings, createAvifenc, token, pixfmt: settings.Transparent ? "yuva444p" : "yuv444p");
+            }
+            catch (Exception e)
+            {
+                TryOutput("Error " + e.Message);
+            }
+            finally
+            {
+                TryOutput("Complete!");
+            }
+        }
+        public async Task EncodeWebP(EncodeSettings settings, CancellationToken token)
+        {
+            string arguments = "-c:v libwebp_anim ";
+
+            if (settings.Quality >= 100)
+            {
+                //Use -lossless 1
+                arguments += "-lossless 1 ";
+            }
+            else
+            {
+                int webpQ = (int)Math.Round(100 * Math.Sqrt(Math.Clamp(settings.Quality, 0, 100) / 100.0));
+                arguments += $"-lossless 0 -q:v {webpQ} ";
+            }
+
+            TryOutput("WARNING: progress does not currently display for WebP, but it is still processing. This is an issue with ffmpeg. It will say 0 frames, but it is still processing, please wait until you see the complete message.");
+            TryOutput("");
+
+            await EncodeWithFFmpeg(settings, arguments, token, pixfmt: settings.Quality >= 100 ? "bgra" : (settings.Transparent ? "yuva420p" : "yuv420p"));
+        }
+        public async Task EncodeJXL(EncodeSettings settings, CancellationToken token)
+        {
+            if (settings.Repeats >= 0) TryOutput("WARNING: Repeat count not currently supported for JXL. Output file will loop indefinitely.");
+
+            string arguments = "-c:v libjxl_anim ";
+
+            double q = Math.Clamp(settings.Quality, 0, 100) / 100.0;
+            const double MAX_DISTANCE = 15.0;
+            int jxlDistance = (int)Math.Round(MAX_DISTANCE * Math.Pow(1.0 - q, 2.0));
+            int jxlEffort = settings.Quality switch
+            {
+                < 50 => settings.Tuning switch
+                {
+                    EncodeSettings.TuningSetting.Best => 7,
+                    EncodeSettings.TuningSetting.Fast or _ => 5
+                },
+                > 90 => settings.Tuning switch
+                {
+                    EncodeSettings.TuningSetting.Best => 9,
+                    EncodeSettings.TuningSetting.Fast or _ => 7
+                },
+                _ => 7
+            };
+
+            arguments += $"-distance {jxlDistance} -effort {jxlEffort} ";
+
+            arguments += "-f rawvideo ";
+
+            await EncodeWithFFmpeg(settings, arguments, token);
+        }
+        public async Task EncodeAPNG(EncodeSettings settings, CancellationToken token)
+        {
+            string playsFormat = settings.Repeats < 0 ? "0" : (settings.Repeats + 1).ToString();
+            string arguments = $"-plays {playsFormat} ";
+
+            arguments += "-f apng ";
+
+            int apngCompression = (int)Math.Round(9 * (1.0 - settings.Quality / 100.0));
+            arguments += $"-compression_level {apngCompression} ";
+
+            await EncodeWithFFmpeg(settings, arguments, token, omitLoops: true);
+        }
+        public async Task EncodeGIF(EncodeSettings settings, CancellationToken token)
+        {
+            if (settings.Transparent)
+            {
+                switch (MessageBox.Show(
+                        "Outputing GIF with transparency. This requires that temporary PNG frames are generated. Depending on your media, this may result in high temporary storage usage. Ensure that your system can handle the output resolution and framerate before proceeding.",
+                        "Higher Demand in GIF Transparent Mode",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Warning
+                        )
+                    )
+                {
+                    case DialogResult.Cancel:
+                        TryOutput("Operation cancelled by user.");
+                        return;
+                }
+            }
+            if (settings.Width > 800 || settings.Height > 800)
+            {
+                switch (MessageBox.Show(
+                        $"Outputing GIF with size {settings.Width}x{settings.Height}. This may result in large file sizes. You may proceed, or consider resizing to a smaller resolution and/or using a more modern format with better compression.",
+                        "Large Output Resolution",
+                        MessageBoxButtons.OKCancel,
+                        MessageBoxIcon.Warning
+                        )
+                    )
+                {
+                    case DialogResult.Cancel:
+                        TryOutput("Operation cancelled by user.");
+                        return;
+                }
+            }
+
+            string repetition = "--repeat " + settings.Repeats switch
+            {
+                < 0 => 0, //forever = 0
+                0 => -1, //-1 = once
+                _ => settings.Repeats
+            } + " ";
+
+            string arguments = $"-Q {Math.Max(settings.Quality, 1)} {repetition}--width={settings.Width} --height={settings.Height} ";
+            if (settings.Transparent) arguments += $"-r {settings.TargetFrameRate} ";
+            arguments += $"-o \"{settings.OutputPath}\" ";
+
+            string transparentTempFramesDirectory = Path.Combine(Path.GetTempPath(), "FAIC_" + Guid.NewGuid().ToString("N"));
+
+            if (settings.Transparent)
+            {
+                arguments += "frame_*.png";
+            }
+            else
+            {
+                arguments += "-"; //trailing - indicates stdin input
+            }
+
+            var createGifski = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "gifski.exe"), "gifski", arguments);
+
+            if (settings.Transparent)
+            {
+                int frameDigits = (int)Math.Floor(Math.Log10((double)((settings.End - settings.Start) * settings.TargetFrameRate))) + 1;
+
+                try
+                {
+                    Directory.CreateDirectory(transparentTempFramesDirectory);
+
+                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"));
+
+                    TryOutput("Done preparing frames.");
+
+                    Process gifski = createGifski.Invoke((false, false));
+                    gifski.StartInfo.WorkingDirectory = transparentTempFramesDirectory;
+
+                    gifski.Start();
+
+                    gifski.BeginErrorReadLine();
+
+                    using var registration = token.Register(() =>
+                    {
+                        try
+                        {
+                            if (!gifski.HasExited)
+                                gifski.Kill(entireProcessTree: true);
+                        }
+                        catch { }
+                    });
+
+                    await gifski.WaitForExitAsync(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    TryOutput("Encode cancelled by user.");
+                }
+                finally
+                {
+                    if (Directory.Exists(transparentTempFramesDirectory))
+                    {
+                        TryOutput("Cleaning up temporary files...");
+                        Directory.Delete(transparentTempFramesDirectory, recursive: true);
+                    }
+                    TryOutput("Complete!");
+                }
+            }
+            else
+            {
+                try
+                {
+                    await EncodeWithFFmpegPipe(settings, createGifski, token);
+                }
+                catch { }
+                finally
+                {
+                    TryOutput("Complete!");
+                }
+            }
+        }
+        #endregion
     }
 }
