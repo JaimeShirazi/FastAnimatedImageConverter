@@ -1,6 +1,7 @@
 using FAIC.Types;
 using FAIC.Types.Forms;
 using System.IO;
+using System.Windows.Media;
 using static Vortice.MediaFoundation.MediaFactory;
 
 namespace FAIC
@@ -328,9 +329,8 @@ namespace FAIC
         }
         #endregion
         #region Console
-        public void Write(string text) => AppendLog(text);
         const int MAX_LINES = 2000;
-        void AppendLog(string msg)
+        public void AppendLog(string msg, System.Drawing.Color? color = null)
         {
             if (InvokeRequired)
             {
@@ -338,7 +338,12 @@ namespace FAIC
                 return;
             }
 
+            System.Drawing.Color prevColorBuffer = commandLineOutput.SelectionColor;
+            if (color.HasValue) commandLineOutput.SelectionColor = color.Value;
+
             commandLineOutput.AppendText(msg + Environment.NewLine);
+
+            if (color.HasValue) commandLineOutput.SelectionColor = prevColorBuffer;
 
             if (commandLineOutput.Lines.Length > MAX_LINES)
             {

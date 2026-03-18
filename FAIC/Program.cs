@@ -30,7 +30,9 @@ namespace FAIC
             return -1;
         }
         #endregion
-        public static void TryOutput(string text) => latest?.Write(text);
+        public static void TryOutput(string text) => latest?.AppendLog(text);
+        public static void TryOutput(ConsoleMessageType type, string text) => latest?.AppendWithFormatting(type, text);
+        public static void TryOutput(Guid jobGuid, string text) => latest?.AppendLog($"[{GetJobIndex(jobGuid) + 1}] {text}");
         private static IConsole latest;
         public static void UpdateConsole(IConsole console) => latest = console;
 

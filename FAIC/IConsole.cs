@@ -1,7 +1,7 @@
 ﻿namespace FAIC
 {
-    internal interface IConsole
+    public interface IConsole
     {
-        public void Write(string text);
+        public void AppendLog(string text, Color? color = null);
     }
 }

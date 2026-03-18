@@ -34,22 +34,25 @@
             statsPanel = new TableLayoutPanel();
             frameStatsLabel = new Label();
             sizeStatsLabel = new Label();
+            encodeProgressBarContainer = new Panel();
             actionPanel = new TableLayoutPanel();
             closeButton = new Button();
             closeAndShowButton = new Button();
             cancelButton = new Button();
             tableLayoutPanel1.SuspendLayout();
             statsPanel.SuspendLayout();
+            encodeProgressBarContainer.SuspendLayout();
             actionPanel.SuspendLayout();
             SuspendLayout();
             // 
             // encodeProgressBar
             // 
             encodeProgressBar.Dock = DockStyle.Fill;
-            encodeProgressBar.Location = new Point(3, 32);
+            encodeProgressBar.Location = new Point(3, 3);
             encodeProgressBar.Maximum = 100000;
+            encodeProgressBar.MinimumSize = new Size(0, 20);
             encodeProgressBar.Name = "encodeProgressBar";
-            encodeProgressBar.Size = new Size(398, 23);
+            encodeProgressBar.Size = new Size(392, 20);
             encodeProgressBar.TabIndex = 0;
             // 
             // tableLayoutPanel1
@@ -59,7 +62,7 @@
             tableLayoutPanel1.ColumnCount = 1;
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle());
             tableLayoutPanel1.Controls.Add(statsPanel, 0, 0);
-            tableLayoutPanel1.Controls.Add(encodeProgressBar, 0, 1);
+            tableLayoutPanel1.Controls.Add(encodeProgressBarContainer, 0, 1);
             tableLayoutPanel1.Controls.Add(actionPanel, 0, 2);
             tableLayoutPanel1.Dock = DockStyle.Fill;
             tableLayoutPanel1.Location = new Point(0, 0);
@@ -68,13 +71,12 @@
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle());
             tableLayoutPanel1.RowStyles.Add(new RowStyle());
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             tableLayoutPanel1.Size = new Size(404, 95);
             tableLayoutPanel1.TabIndex = 1;
             // 
             // statsPanel
             // 
-            statsPanel.AutoSize = true;
-            statsPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             statsPanel.ColumnCount = 2;
             statsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             statsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
@@ -86,7 +88,7 @@
             statsPanel.RowCount = 1;
             statsPanel.RowStyles.Add(new RowStyle());
             statsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            statsPanel.Size = new Size(398, 23);
+            statsPanel.Size = new Size(398, 20);
             statsPanel.TabIndex = 1;
             // 
             // frameStatsLabel
@@ -96,7 +98,7 @@
             frameStatsLabel.Font = new Font("Consolas", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
             frameStatsLabel.Location = new Point(3, 0);
             frameStatsLabel.Name = "frameStatsLabel";
-            frameStatsLabel.Size = new Size(193, 23);
+            frameStatsLabel.Size = new Size(193, 20);
             frameStatsLabel.TabIndex = 0;
             frameStatsLabel.Text = "0 frames at 1.0x (0fps)";
             frameStatsLabel.TextAlign = ContentAlignment.BottomLeft;
@@ -108,15 +110,25 @@
             sizeStatsLabel.Font = new Font("Consolas", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
             sizeStatsLabel.Location = new Point(202, 0);
             sizeStatsLabel.Name = "sizeStatsLabel";
-            sizeStatsLabel.Size = new Size(193, 23);
+            sizeStatsLabel.Size = new Size(193, 20);
             sizeStatsLabel.TabIndex = 2;
             sizeStatsLabel.Text = "0kB";
             sizeStatsLabel.TextAlign = ContentAlignment.BottomRight;
             // 
+            // encodeProgressBarContainer
+            // 
+            encodeProgressBarContainer.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            encodeProgressBarContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            encodeProgressBarContainer.Controls.Add(encodeProgressBar);
+            encodeProgressBarContainer.Location = new Point(3, 29);
+            encodeProgressBarContainer.MinimumSize = new Size(0, 26);
+            encodeProgressBarContainer.Name = "encodeProgressBarContainer";
+            encodeProgressBarContainer.Padding = new Padding(3);
+            encodeProgressBarContainer.Size = new Size(398, 26);
+            encodeProgressBarContainer.TabIndex = 3;
+            // 
             // actionPanel
             // 
-            actionPanel.AutoSize = true;
-            actionPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             actionPanel.ColumnCount = 3;
             actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             actionPanel.ColumnStyles.Add(new ColumnStyle());
@@ -176,20 +188,20 @@
             AcceptButton = closeButton;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            CancelButton = closeButton;
+            AutoSize = true;
+            AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            CancelButton = cancelButton;
             ClientSize = new Size(404, 95);
             Controls.Add(tableLayoutPanel1);
             Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
-            MaximumSize = new Size(1600, 134);
-            MinimumSize = new Size(420, 134);
             Name = "ConversionWindow";
             StartPosition = FormStartPosition.CenterParent;
             Text = "Conversion Progress (busy 0s)";
             tableLayoutPanel1.ResumeLayout(false);
-            tableLayoutPanel1.PerformLayout();
             statsPanel.ResumeLayout(false);
             statsPanel.PerformLayout();
+            encodeProgressBarContainer.ResumeLayout(false);
             actionPanel.ResumeLayout(false);
             actionPanel.PerformLayout();
             ResumeLayout(false);
@@ -207,5 +219,6 @@
         private Button closeButton;
         private Button closeAndShowButton;
         private Button cancelButton;
+        private Panel encodeProgressBarContainer;
     }
 }

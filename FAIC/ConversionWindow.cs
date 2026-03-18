@@ -1,8 +1,4 @@
-﻿using System;
-using System.Diagnostics;
-using System.Numerics;
-using System.Threading;
-using System.Windows.Forms;
+﻿using System.Diagnostics;
 
 namespace FAIC
 {
@@ -46,12 +42,27 @@ namespace FAIC
         public ConversionWindow(Inputs inputs, CancellationTokenSource cancellationTokenSource)
         {
             InitializeComponent();
+            AutoSize = false;
+            MinimumSize = new Size(Width, Height);
+            int widest = Screen.PrimaryScreen.WorkingArea.Width;
+            for (int i = 0; i < Screen.AllScreens.Length; i++)
+            {
+                widest = Math.Max(Screen.AllScreens[i].WorkingArea.Width, widest);
+            }
+            Program.TryOutput($"Widest: {widest}");
+            MaximumSize = new Size(widest, Height);
+            FormBorderStyle = FormBorderStyle.Sizable;
+
             jobId = Guid.NewGuid();
             Program.RegisterJob(jobId);
             outputPath = inputs.outputPath;
             expectedLength = inputs.expectedLength;
-            timer.Interval = 100;
-            timer.Tick += (_, _) => UpdateUI();
+            timer.Interval = 1000;
+            timer.Tick += (_, _) =>
+            {
+                double seconds = Math.Truncate(stopwatch.Elapsed.TotalSeconds);
+                Text = $"Conversion Job {Program.GetJobIndex(jobId) + 1} (busy for {seconds}s)";
+            };
             timer.Start();
             inputs.ffmpeg.ErrorDataReceived += (_, e) =>
             {
@@ -68,19 +79,11 @@ namespace FAIC
                     TryOutput(e.Data);
             };
         }
-        private void UpdateUI()
-        {
-            double seconds = Math.Truncate(stopwatch.Elapsed.TotalSeconds);
-            Text = $"Conversion Job {Program.GetJobIndex(jobId) + 1} (busy for {seconds}s)";
-            if (buffer.changed)
-            {
-                ApplyBuffer();
-            }
-        }
         private void TryOutput(string packet)
         {
-            Program.TryOutput($"[{Program.GetJobIndex(jobId) + 1}] {packet}");
+            Program.TryOutput(jobId, packet);
         }
+        #region progress handling
         private void TryReceiveUpdate(string packet)
         {
             if (string.IsNullOrEmpty(packet)) return;
@@ -103,127 +106,103 @@ namespace FAIC
             if (!progressAccum.ContainsKey(key)) progressAccum.Add(key, value);
             else progressAccum[key] = value;
 
-            if (key == "progress")
-            {
-                FlushProgress();
-            }
+            TryFlushProgress();
         }
         private struct StateBuffer
         {
-            public bool changed;
-            public string FrameStatsLabel
-            {
-                get => frameStatsLabel;
-                set
-                {
-                    changed = true;
-                    frameStatsLabel = value;
-                }
-            }
-            private string frameStatsLabel;
-            public string SizeStatsLabel
-            {
-                get => sizeStatsLabel;
-                set
-                {
-                    changed = true;
-                    sizeStatsLabel = value;
-                }
-            }
-            private string sizeStatsLabel;
-            public double EncodeProgressBarNormalised
-            {
-                get => encodeProgressBarNormalised;
-                set
-                {
-                    changed = true;
-                    encodeProgressBarNormalised = value;
-                }
-            }
-            private double encodeProgressBarNormalised;
-            public ProgressBarStyle EncodeProgressBarStyle
-            {
-                get => encodeProgressBarStyle;
-                set
-                {
-                    changed = true;
-                    encodeProgressBarStyle = value;
-                }
-
-            }
-            private ProgressBarStyle encodeProgressBarStyle;
+            public string FrameStatsLabel;
+            public string SizeStatsLabel;
+            public double TimeMs;
+            public ProgressBarStyle EncodeProgressBarStyle;
         }
         private StateBuffer buffer;
-        private void ApplyBuffer()
+        private void TryApplyBuffer(StateBuffer target)
         {
-            buffer.changed = false;
-            frameStatsLabel.Text = string.IsNullOrEmpty(buffer.FrameStatsLabel) ? "" : buffer.FrameStatsLabel;
-            sizeStatsLabel.Text = string.IsNullOrEmpty(buffer.SizeStatsLabel) ? "" : buffer.SizeStatsLabel;
-            encodeProgressBar.Value = (int)(encodeProgressBar.Maximum * buffer.EncodeProgressBarNormalised);
-            encodeProgressBar.Style = buffer.EncodeProgressBarStyle;
+            if (complete) return;
+            frameStatsLabel.Text = string.IsNullOrEmpty(target.FrameStatsLabel) ? "" : target.FrameStatsLabel;
+            sizeStatsLabel.Text = string.IsNullOrEmpty(target.SizeStatsLabel) ? "" : target.SizeStatsLabel;
+            encodeProgressBar.Value = Math.Min((int)(encodeProgressBar.Maximum * ((target.TimeMs * 0.000001) / expectedLength)), encodeProgressBar.Maximum);
+            encodeProgressBar.Style = target.EncodeProgressBarStyle;
         }
-        private void FlushProgress()
+        private void TryFlushProgress()
         {
-            if (progressAccum.ContainsKey("progress"))
-            {
-                if (progressAccum["progress"].Trim().ToLower() == "end")
-                {
-                    buffer.FrameStatsLabel = "Finalising...";
-                    buffer.EncodeProgressBarStyle = ProgressBarStyle.Marquee;
-                    buffer.EncodeProgressBarNormalised = 1;
-                    progressAccum.Clear();
-                    return;
-                }
-            }
+            if (!progressAccum.ContainsKey("progress")) return;
 
-            int frame = 0;
-            double fps = 0;
-            string speed = "";
-            if (progressAccum.ContainsKey("frame"))
+            if (progressAccum["progress"].Trim().ToLower() == "end")
             {
-                int.TryParse(progressAccum["frame"], out frame);
-            }
-            if (progressAccum.ContainsKey("fps"))
-            {
-                double.TryParse(progressAccum["fps"], out fps);
-            }
-            if (progressAccum.ContainsKey("speed"))
-            {
-                speed = progressAccum["speed"];
-            }
-            buffer.FrameStatsLabel = $"{frame} frames at {speed} ({fps:N2}fps)";
-            if (isPipe)
-            {
-                buffer.SizeStatsLabel = "";
+                buffer.FrameStatsLabel = "Finalising...";
+                buffer.EncodeProgressBarStyle = ProgressBarStyle.Marquee;
+                buffer.TimeMs = expectedLength * 1000000;
             }
             else
             {
-                long size = 0;
-                if (progressAccum.ContainsKey("total_size"))
+                int frame = 0;
+                double fps = 0;
+                string speed = "";
+                if (progressAccum.ContainsKey("frame"))
                 {
-                    if (long.TryParse(progressAccum["total_size"], out size))
+                    int.TryParse(progressAccum["frame"], out frame);
+                }
+                if (progressAccum.ContainsKey("fps"))
+                {
+                    double.TryParse(progressAccum["fps"], out fps);
+                }
+                if (progressAccum.ContainsKey("speed"))
+                {
+                    speed = progressAccum["speed"];
+                }
+                buffer.FrameStatsLabel = $"{frame} frames at {speed} ({fps:N2}fps)";
+                if (isPipe)
+                {
+                    buffer.SizeStatsLabel = "";
+                }
+                else
+                {
+                    long size = 0;
+                    if (progressAccum.ContainsKey("total_size"))
                     {
-                        size /= 1000;
+                        if (long.TryParse(progressAccum["total_size"], out size))
+                        {
+                            size /= 1000;
+                        }
+                    }
+                    buffer.SizeStatsLabel = $"{size}kB";
+                }
+                if (progressAccum.ContainsKey("out_time_ms"))
+                {
+                    if (double.TryParse(progressAccum["out_time_ms"], out double timeMs))
+                    {
+                        buffer.TimeMs = timeMs;
                     }
                 }
-                buffer.SizeStatsLabel = $"{size}kB";
+                buffer.EncodeProgressBarStyle = ProgressBarStyle.Blocks;
             }
-            if (progressAccum.ContainsKey("out_time_ms"))
-            {
-                if (double.TryParse(progressAccum["out_time_ms"], out double timeMs))
-                {
-                    buffer.EncodeProgressBarNormalised = (timeMs * 0.001) / expectedLength;
-                }
-            }
-            buffer.EncodeProgressBarStyle = ProgressBarStyle.Blocks;
 
             progressAccum.Clear();
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(() => TryApplyBuffer(buffer));
+            }
+            else
+            {
+                TryApplyBuffer(buffer);
+            }
         }
+        #endregion
         public void Complete()
         {
             complete = true;
             closeButton.Enabled = true;
             closeAndShowButton.Enabled = true;
+            cancelButton.Enabled = false;
+            encodeProgressBar.Style = ProgressBarStyle.Blocks;
+            { //Hack to instantly set the position of the progress bar
+                encodeProgressBar.Value = encodeProgressBar.Maximum;
+                encodeProgressBar.Value -= 1;
+                encodeProgressBar.Value += 1;
+            }
+            stopwatch.Stop();
         }
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -250,6 +229,7 @@ namespace FAIC
             {
                 MessageBox.Show("File not found: " + outputPath);
             }
+            Close();
         }
 
         private void closeButton_Click(object sender, EventArgs e)
