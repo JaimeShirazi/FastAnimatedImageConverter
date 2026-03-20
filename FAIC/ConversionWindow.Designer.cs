@@ -78,8 +78,8 @@
             // statsPanel
             // 
             statsPanel.ColumnCount = 2;
-            statsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            statsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            statsPanel.ColumnStyles.Add(new ColumnStyle());
+            statsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             statsPanel.Controls.Add(frameStatsLabel, 0, 1);
             statsPanel.Controls.Add(sizeStatsLabel, 2, 1);
             statsPanel.Dock = DockStyle.Fill;
@@ -98,7 +98,7 @@
             frameStatsLabel.Font = new Font("Consolas", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
             frameStatsLabel.Location = new Point(3, 0);
             frameStatsLabel.Name = "frameStatsLabel";
-            frameStatsLabel.Size = new Size(193, 20);
+            frameStatsLabel.Size = new Size(168, 20);
             frameStatsLabel.TabIndex = 0;
             frameStatsLabel.Text = "0 frames at 1.0x (0fps)";
             frameStatsLabel.TextAlign = ContentAlignment.BottomLeft;
@@ -108,9 +108,9 @@
             sizeStatsLabel.AutoSize = true;
             sizeStatsLabel.Dock = DockStyle.Fill;
             sizeStatsLabel.Font = new Font("Consolas", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            sizeStatsLabel.Location = new Point(202, 0);
+            sizeStatsLabel.Location = new Point(177, 0);
             sizeStatsLabel.Name = "sizeStatsLabel";
-            sizeStatsLabel.Size = new Size(193, 20);
+            sizeStatsLabel.Size = new Size(218, 20);
             sizeStatsLabel.TabIndex = 2;
             sizeStatsLabel.Text = "0kB";
             sizeStatsLabel.TextAlign = ContentAlignment.BottomRight;
