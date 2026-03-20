@@ -1,6 +1,7 @@
 using FAIC.Types;
 using FAIC.Types.Forms;
 using System.IO;
+using System.Windows.Media;
 using static Vortice.MediaFoundation.MediaFactory;
 
 namespace FAIC
@@ -66,7 +67,7 @@ namespace FAIC
             InputPath = inputPath;
             if (string.IsNullOrEmpty(inputPath))
             {
-                AppendLog("Drag a media file onto the window to convert it!");
+                Program.TryOutput(ConsoleMessageType.Tip, "Drag a media file onto the window to convert it!");
             }
 
             fpsSetting.SelectedIndex = 0;
@@ -98,19 +99,19 @@ namespace FAIC
             convertButton.Enabled = hadInfo;
             if (!hadInfo)
             {
-                AppendLog("Unable to read media.");
+                Program.TryOutput(ConsoleMessageType.Error, "Unable to read media.");
+                AppendLog("");
                 return;
             }
             else
             {
-                AppendLog($"Detected media: {info}");
+                Program.TryOutput(ConsoleMessageType.System, $"Detected media: {info}");
             }
             if (info.Width.ReadData && info.Height.ReadData)
             {
                 resizeDimensionLabel.Text = info.Width > info.Height ? "Width" : (info.Width == info.Height ? "Size" : "Height");
                 resizeDimensionValue.Value = Math.Max(info.Width, info.Height);
             }
-            samplingLayoutPanel.Enabled = false;
             resizeSlider.Value = 100;
             playhead.Value = 0;
             playhead.Maximum = (int)(1000 * info.Length);
@@ -264,8 +265,6 @@ namespace FAIC
                 (decimal)0.01
                 );
 
-            samplingLayoutPanel.Enabled = percentageSize != 100;
-
             string formattedPercentage = percentageSize switch
             {
                 < 10 => percentageSize.ToString("0.00"),
@@ -331,29 +330,41 @@ namespace FAIC
         }
         #endregion
         #region Console
-        public void Write(string text) => AppendLog(text);
         const int MAX_LINES = 2000;
-        void AppendLog(string msg)
+        public void AppendLog(string msg, System.Drawing.Color? color = null, bool bold = false)
         {
             if (InvokeRequired)
             {
-                BeginInvoke(() => AppendLog(msg));
+                BeginInvoke(() => AppendLog(msg, color, bold));
                 return;
             }
 
-            commandLineOutput.AppendText(msg + Environment.NewLine);
-
-            if (commandLineOutput.Lines.Length > MAX_LINES)
+            try
             {
-                var lines = commandLineOutput.Lines.Skip(commandLineOutput.Lines.Length - MAX_LINES).ToArray();
-                commandLineOutput.Lines = lines;
+                Font prevSelectionFont = commandLineOutput.SelectionFont;
+                System.Drawing.Color prevColorBuffer = commandLineOutput.SelectionColor;
+                if (color.HasValue) commandLineOutput.SelectionColor = color.Value;
+                if (bold) commandLineOutput.SelectionFont = new Font(commandLineOutput.Font, FontStyle.Bold);
+
+                commandLineOutput.AppendText(msg + Environment.NewLine);
+
+                if (bold) commandLineOutput.SelectionFont = prevSelectionFont;
+                if (color.HasValue) commandLineOutput.SelectionColor = prevColorBuffer;
+
+                if (commandLineOutput.Lines.Length > MAX_LINES)
+                {
+                    var lines = commandLineOutput.Lines.Skip(commandLineOutput.Lines.Length - MAX_LINES).ToArray();
+                    commandLineOutput.Lines = lines;
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                //Ignore - application shutting down
             }
         }
         #endregion
         #endregion
         #region Encoding
-        private CancellationTokenSource? _encodeCTS;
-        private Task? _encodeTask;
         private void convertButton_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(inputPath))
@@ -363,7 +374,7 @@ namespace FAIC
 
             if (firstFrameInput.Value > lastFrameInput.Value)
             {
-                AppendLog("End time is before start time, swapping values.");
+                Program.TryOutput(ConsoleMessageType.Warning, "End time is before start time, swapping values.");
                 decimal lastFrameTimeCurrent = lastFrameInput.Value;
                 lastFrameInput.Value = firstFrameInput.Value;
                 firstFrameInput.Value = lastFrameTimeCurrent;
@@ -372,12 +383,7 @@ namespace FAIC
             saveFileDialogue.FileName = Path.GetFileNameWithoutExtension(inputPath) + "_Converted";
             if (saveFileDialogue.ShowDialog() == DialogResult.OK)
             {
-                if (_encodeTask is { IsCompleted: false })
-                    return; // already running
-
-                _encodeCTS = new CancellationTokenSource();
-
-                _encodeTask = StartEncodeAsync(saveFileDialogue.FileName, _encodeCTS.Token);
+                StartEncode(saveFileDialogue.FileName);
             }
         }
         public ArgumentsWindowOutputs DoArgumentsWindow(ArgumentsWindowInputs inputs)
@@ -397,143 +403,76 @@ namespace FAIC
                 return outputs;
             }
         }
-        private async Task StartEncodeAsync(string outputPath, CancellationToken token)
+        private void StartEncode(string outputPath)
         {
             commandLineOutput.Clear();
 
             string extension = Path.GetExtension(outputPath).TrimStart('.').ToLowerInvariant();
 
+            switch (extension)
+            {
+                case "gif":
+                    if (fpsValue.Value > 100)
+                    {
+                        Program.TryOutput(ConsoleMessageType.Warning, "GIF does not support >100fps. Clamping to 100.");
+                        if (GetSourceMediaFrameRate() > 100 && fpsSetting.SelectedIndex == 0)
+                        {
+                            fpsSetting.SelectedIndex = 1;
+                        }
+                        fpsValue.Value = 100;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
             try
             {
-                convertButton.Enabled = false;
-                cancelButton.Enabled = true;
-
-                switch (extension)
-                {
-                    case "gif":
-                        if (fpsValue.Value > 100)
-                        {
-                            AppendLog("GIF does not support >100fps. Clamping to 100.");
-                            if (GetSourceMediaFrameRate() > 100 && fpsSetting.SelectedIndex == 0)
-                            {
-                                fpsSetting.SelectedIndex = 1;
-                            }
-                            fpsValue.Value = 100;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-
                 int smallestDimension = (int)Math.Round(GetMediaSmallestDimension() * (resizeDimensionValue.Value / GetMediaLargestDimension()));
                 bool widthLarger = IsMediaWidthLarger();
                 int width = widthLarger ? (int)resizeDimensionValue.Value : smallestDimension;
                 int height = widthLarger ? smallestDimension : (int)resizeDimensionValue.Value;
 
-                EncodeSettings.ResampleSetting resampleSetting;
-                if ((int)resizeDimensionValue.Value == GetMediaLargestDimension())
-                {
-                    resampleSetting = EncodeSettings.ResampleSetting.None;
-                }
-                else if (sampleFastRadio.Checked)
-                {
-                    resampleSetting = EncodeSettings.ResampleSetting.Bilinear;
-                }
-                else if (sampleBestRadio.Checked)
-                {
-                    if ((int)resizeDimensionValue.Value < GetMediaLargestDimension())
-                    {
-                        resampleSetting = EncodeSettings.ResampleSetting.Lanczos;
-                    }
-                    else
-                    {
-                        resampleSetting = EncodeSettings.ResampleSetting.Spline36;
-                    }
-                }
-                else
-                {
-                    AppendLog("Failed to determine resample filter mode. Defaulting to bilinear.");
-                    resampleSetting = EncodeSettings.ResampleSetting.Bilinear;
-                }
-
-                EncodeSettings.InterpolateSetting interpolateSetting;
-                switch (fpsSetting.SelectedIndex)
-                {
-                    case 0:
-                        interpolateSetting = EncodeSettings.InterpolateSetting.None;
-                        break;
-                    case 1:
-                        interpolateSetting = EncodeSettings.InterpolateSetting.Nearest;
-                        break;
-                    case 2:
-                        interpolateSetting = EncodeSettings.InterpolateSetting.Blended;
-                        break;
-                    default:
-                        AppendLog("Unknown frame rate mode. Defaulting to Same.");
-                        interpolateSetting = EncodeSettings.InterpolateSetting.None;
-                        break;
-                }
-
-                EncodeSettings settings = new EncodeSettings()
+                EncodeSettings settings = new EncodeSettings((int)resizeDimensionValue.Value, GetMediaLargestDimension(), processingFastRadio.Checked, processingBestRadio.Checked)
                 {
                     InputPath = inputPath,
                     InputFormat = latestInfo?.Codec ?? "",
                     OutputPath = outputPath,
+                    OutputFormat = extension switch
+                    {
+                        "avif" => ConvertJobTarget.AVIF,
+                        "gif" => ConvertJobTarget.GIF,
+                        "jxl" => ConvertJobTarget.JXL,
+                        "apng" or "png" => ConvertJobTarget.APNG,
+                        "webp" => ConvertJobTarget.WEBP,
+                        _ => throw new System.NotImplementedException($"Unrecognised target extension \"{extension}\"")
+                    },
                     Quality = qualitySlider.Value,
                     Start = firstFrameInput.Value,
                     End = lastFrameInput.Value,
                     Width = width,
                     Height = height,
-                    Resample = resampleSetting,
                     Speed = Speeds[speedSlider.Value],
                     TargetFrameRate = fpsValue.Value,
-                    Interpolate = interpolateSetting,
+                    Interpolate = fpsSetting.SelectedIndex switch
+                    {
+                        0 => EncodeSettings.InterpolateSetting.None,
+                        1 => EncodeSettings.InterpolateSetting.Nearest,
+                        2 => EncodeSettings.InterpolateSetting.Blended,
+                        _ => throw new System.NotImplementedException($"Unrecognised FPS setting target option number ({fpsSetting.SelectedIndex})")
+                    },
                     Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value,
                     Transparent = transparentCheckbox.Checked,
                     onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null
                 };
 
-                switch (extension)
-                {
-                    case "avif":
-                    default:
-                        if (extension != "avif") AppendLog("Error: Unrecognised extension. Outputting as AVIF.");
-                        await Program.EncodeAVIF(settings, token);
-                        break;
-                    case "gif":
-                        await Program.EncodeGIF(settings, token);
-                        break;
-                    case "jxl":
-                        await Program.EncodeJXL(settings, token);
-                        break;
-                    case "apng":
-                    case "png":
-                        await Program.EncodeAPNG(settings, token);
-                        break;
-                    case "webp":
-                        await Program.EncodeWebP(settings, token);
-                        break;
-                }
-
-            }
-            catch (OperationCanceledException)
-            {
-                // user cancelled — fine
+                ConversionWindow conversion = new ConversionWindow(settings);
+                conversion.Show(this);
             }
             catch (Exception ex)
             {
-                AppendLog($"Encode Failed: {ex.ToString}");
+                Program.TryOutput(ConsoleMessageType.Error, ex.Message);
             }
-            finally
-            {
-                convertButton.Enabled = true;
-                cancelButton.Enabled = false;
-            }
-        }
-        private void cancelButton_Click(object sender, EventArgs e)
-        {
-            _encodeCTS?.Cancel();
-            cancelButton.Enabled = false;
         }
         #endregion
 
@@ -586,7 +525,7 @@ namespace FAIC
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop, false);
 
             InputPath = files[0];
-            AppendLog($"Set input file to file at path \"{InputPath}\"");
+            Program.TryOutput(ConsoleMessageType.System, $"Set input file to file at path \"{InputPath}\"");
         }
         private void OnDragEnter(object sender, DragEventArgs e)
         {
@@ -601,11 +540,6 @@ namespace FAIC
         }
         protected override async void OnFormClosing(FormClosingEventArgs e)
         {
-            _encodeCTS?.Cancel();
-
-            if (_encodeTask != null)
-                await _encodeTask;
-
             if (videoPreview != null)
             {
                 await videoPreview.End();

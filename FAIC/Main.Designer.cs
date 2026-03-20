@@ -37,7 +37,6 @@ namespace FAIC
             convertButton = new Button();
             qualityLabel = new Label();
             saveFileDialogue = new SaveFileDialog();
-            cancelButton = new Button();
             commandLineOutput = new RichTextBox();
             settingsGroupBox = new GroupBox();
             settingsTable = new TableLayoutPanel();
@@ -46,10 +45,6 @@ namespace FAIC
             resizeDimensionLabel = new Label();
             resizeDimensionContainer = new Panel();
             resizeDimensionValue = new NumericUpDown();
-            samplingLabel = new Label();
-            samplingLayoutPanel = new TableLayoutPanel();
-            sampleFastRadio = new RadioButton();
-            sampleBestRadio = new RadioButton();
             settingsDivider1 = new Panel();
             trimColumnLayoutPanel = new TableLayoutPanel();
             trimLabel = new Label();
@@ -62,20 +57,26 @@ namespace FAIC
             settingsDivider2 = new Panel();
             speedLabel = new Label();
             speedSlider = new TrackBar();
+            fpsColumnLayoutPanel = new TableLayoutPanel();
             fpsLabel = new Label();
+            fpsModeLabel = new Label();
             fpsSetting = new ComboBox();
-            fpsSpacerPanel = new Panel();
+            fpsTargetLabel = new Label();
             fpsContainer = new Panel();
             fpsValue = new NumericUpDown();
+            settingsDivider3 = new Panel();
+            formatLabel = new Label();
+            transparentCheckbox = new CheckBox();
             repeatsLabel = new Label();
             repeatContainer = new Panel();
             repeatValue = new FAIC.Types.Forms.InfinityNumericUpDown();
-            settingsDivider3 = new Panel();
-            transparentLabel = new Label();
-            transparentCheckbox = new CheckBox();
             settingsDivider4 = new Panel();
             advancedLabel = new Label();
             editArgumentsCheckbox = new CheckBox();
+            processingModeLabel = new Label();
+            processingLayoutPanel = new TableLayoutPanel();
+            processingFastRadio = new RadioButton();
+            processingBestRadio = new RadioButton();
             mainSplit = new SplitContainer();
             videoPanelTable = new TableLayoutPanel();
             videoContainingPanel = new Panel();
@@ -92,6 +93,7 @@ namespace FAIC
             commandLinePaddingPanel = new Panel();
             actionsPanel = new Panel();
             tooltips = new ToolTip(components);
+            masterLayout = new TableLayoutPanel();
             ((System.ComponentModel.ISupportInitialize)qualitySlider).BeginInit();
             ((System.ComponentModel.ISupportInitialize)settingsBindingSource).BeginInit();
             settingsGroupBox.SuspendLayout();
@@ -99,17 +101,18 @@ namespace FAIC
             ((System.ComponentModel.ISupportInitialize)resizeSlider).BeginInit();
             resizeDimensionContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)resizeDimensionValue).BeginInit();
-            samplingLayoutPanel.SuspendLayout();
             trimColumnLayoutPanel.SuspendLayout();
             firstFrameContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)firstFrameInput).BeginInit();
             lastFrameContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)lastFrameInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)speedSlider).BeginInit();
+            fpsColumnLayoutPanel.SuspendLayout();
             fpsContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)fpsValue).BeginInit();
             repeatContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)repeatValue).BeginInit();
+            processingLayoutPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)mainSplit).BeginInit();
             mainSplit.Panel1.SuspendLayout();
             mainSplit.Panel2.SuspendLayout();
@@ -122,6 +125,7 @@ namespace FAIC
             conversionPanel.SuspendLayout();
             commandLinePaddingPanel.SuspendLayout();
             actionsPanel.SuspendLayout();
+            masterLayout.SuspendLayout();
             SuspendLayout();
             // 
             // qualitySlider
@@ -135,7 +139,7 @@ namespace FAIC
             qualitySlider.Margin = new Padding(2);
             qualitySlider.Maximum = 100;
             qualitySlider.Name = "qualitySlider";
-            qualitySlider.Size = new Size(216, 19);
+            qualitySlider.Size = new Size(218, 19);
             qualitySlider.TabIndex = 1;
             qualitySlider.TickFrequency = 10;
             tooltips.SetToolTip(qualitySlider, resources.GetString("qualitySlider.ToolTip"));
@@ -150,11 +154,13 @@ namespace FAIC
             // 
             convertButton.AccessibleDescription = "";
             convertButton.AccessibleName = "Begin conversion button";
-            convertButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            convertButton.Location = new Point(2, 2);
-            convertButton.Margin = new Padding(2);
+            convertButton.AutoSize = true;
+            convertButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            convertButton.Dock = DockStyle.Fill;
+            convertButton.Location = new Point(0, 0);
+            convertButton.Margin = new Padding(4);
             convertButton.Name = "convertButton";
-            convertButton.Size = new Size(706, 29);
+            convertButton.Size = new Size(776, 25);
             convertButton.TabIndex = 0;
             convertButton.Text = "Convert To...";
             tooltips.SetToolTip(convertButton, "Begin conversion with current settings. Select desired format in the \"Save To\" dialogue after pressing this button.");
@@ -178,21 +184,6 @@ namespace FAIC
             saveFileDialogue.DefaultExt = "avif";
             saveFileDialogue.Filter = "AV1 Image File Format (*.avif)|*.avif|JPEG XL (*.jxl)|*.jxl|WebP (*.webp)|*.webp|Animated Portable Network Graphics (*.png, *.apng)|*.png;*.apng|Graphics Interchange Format (*.gif)|*.gif";
             // 
-            // cancelButton
-            // 
-            cancelButton.AccessibleName = "Cancel current conversion button";
-            cancelButton.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            cancelButton.Enabled = false;
-            cancelButton.Location = new Point(712, 2);
-            cancelButton.Margin = new Padding(2);
-            cancelButton.Name = "cancelButton";
-            cancelButton.Size = new Size(70, 29);
-            cancelButton.TabIndex = 1;
-            cancelButton.Text = "Cancel";
-            tooltips.SetToolTip(cancelButton, "Cancel the current conversion.");
-            cancelButton.UseVisualStyleBackColor = true;
-            cancelButton.Click += cancelButton_Click;
-            // 
             // commandLineOutput
             // 
             commandLineOutput.BackColor = SystemColors.Window;
@@ -203,7 +194,7 @@ namespace FAIC
             commandLineOutput.Margin = new Padding(2);
             commandLineOutput.Name = "commandLineOutput";
             commandLineOutput.ReadOnly = true;
-            commandLineOutput.Size = new Size(310, 120);
+            commandLineOutput.Size = new Size(312, 122);
             commandLineOutput.TabIndex = 0;
             commandLineOutput.Text = "";
             tooltips.SetToolTip(commandLineOutput, "Console output from the converter tools.");
@@ -215,11 +206,11 @@ namespace FAIC
             settingsGroupBox.Controls.Add(settingsTable);
             settingsGroupBox.Dock = DockStyle.Top;
             settingsGroupBox.Enabled = false;
-            settingsGroupBox.Location = new Point(2, 2);
+            settingsGroupBox.Location = new Point(4, 4);
             settingsGroupBox.Margin = new Padding(2, 2, 2, 0);
             settingsGroupBox.Name = "settingsGroupBox";
             settingsGroupBox.Padding = new Padding(2);
-            settingsGroupBox.Size = new Size(322, 380);
+            settingsGroupBox.Size = new Size(324, 380);
             settingsGroupBox.TabIndex = 0;
             settingsGroupBox.TabStop = false;
             settingsGroupBox.Text = "Settings";
@@ -237,28 +228,28 @@ namespace FAIC
             settingsTable.Controls.Add(resizeSlider, 1, 1);
             settingsTable.Controls.Add(resizeDimensionLabel, 0, 2);
             settingsTable.Controls.Add(resizeDimensionContainer, 1, 2);
-            settingsTable.Controls.Add(samplingLabel, 0, 3);
-            settingsTable.Controls.Add(samplingLayoutPanel, 1, 3);
-            settingsTable.Controls.Add(settingsDivider1, 0, 4);
-            settingsTable.Controls.Add(trimColumnLayoutPanel, 0, 5);
-            settingsTable.Controls.Add(firstFrameContainer, 1, 5);
-            settingsTable.Controls.Add(lastFrameLabel, 0, 6);
-            settingsTable.Controls.Add(lastFrameContainer, 1, 6);
-            settingsTable.Controls.Add(settingsDivider2, 0, 7);
-            settingsTable.Controls.Add(speedLabel, 0, 8);
-            settingsTable.Controls.Add(speedSlider, 1, 8);
-            settingsTable.Controls.Add(fpsLabel, 0, 9);
-            settingsTable.Controls.Add(fpsSetting, 1, 9);
-            settingsTable.Controls.Add(fpsSpacerPanel, 0, 10);
-            settingsTable.Controls.Add(fpsContainer, 1, 10);
-            settingsTable.Controls.Add(repeatsLabel, 0, 11);
-            settingsTable.Controls.Add(repeatContainer, 1, 11);
-            settingsTable.Controls.Add(settingsDivider3, 0, 12);
-            settingsTable.Controls.Add(transparentLabel, 0, 13);
-            settingsTable.Controls.Add(transparentCheckbox, 1, 13);
-            settingsTable.Controls.Add(settingsDivider4, 0, 14);
-            settingsTable.Controls.Add(advancedLabel, 0, 15);
-            settingsTable.Controls.Add(editArgumentsCheckbox, 1, 15);
+            settingsTable.Controls.Add(settingsDivider1, 0, 3);
+            settingsTable.Controls.Add(trimColumnLayoutPanel, 0, 4);
+            settingsTable.Controls.Add(firstFrameContainer, 1, 4);
+            settingsTable.Controls.Add(lastFrameLabel, 0, 5);
+            settingsTable.Controls.Add(lastFrameContainer, 1, 5);
+            settingsTable.Controls.Add(settingsDivider2, 0, 6);
+            settingsTable.Controls.Add(speedLabel, 0, 7);
+            settingsTable.Controls.Add(speedSlider, 1, 7);
+            settingsTable.Controls.Add(fpsColumnLayoutPanel, 0, 8);
+            settingsTable.Controls.Add(fpsSetting, 1, 8);
+            settingsTable.Controls.Add(fpsTargetLabel, 0, 9);
+            settingsTable.Controls.Add(fpsContainer, 1, 9);
+            settingsTable.Controls.Add(settingsDivider3, 0, 10);
+            settingsTable.Controls.Add(formatLabel, 0, 11);
+            settingsTable.Controls.Add(transparentCheckbox, 1, 11);
+            settingsTable.Controls.Add(repeatsLabel, 0, 12);
+            settingsTable.Controls.Add(repeatContainer, 1, 12);
+            settingsTable.Controls.Add(settingsDivider4, 0, 13);
+            settingsTable.Controls.Add(advancedLabel, 0, 14);
+            settingsTable.Controls.Add(editArgumentsCheckbox, 1, 14);
+            settingsTable.Controls.Add(processingModeLabel, 0, 15);
+            settingsTable.Controls.Add(processingLayoutPanel, 1, 15);
             settingsTable.Dock = DockStyle.Fill;
             settingsTable.Location = new Point(2, 18);
             settingsTable.Margin = new Padding(2, 2, 2, 0);
@@ -280,7 +271,8 @@ namespace FAIC
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
-            settingsTable.Size = new Size(318, 360);
+            settingsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            settingsTable.Size = new Size(320, 360);
             settingsTable.TabIndex = 0;
             // 
             // resizeLabel
@@ -306,7 +298,7 @@ namespace FAIC
             resizeSlider.Margin = new Padding(2);
             resizeSlider.Maximum = 100;
             resizeSlider.Name = "resizeSlider";
-            resizeSlider.Size = new Size(216, 19);
+            resizeSlider.Size = new Size(218, 19);
             resizeSlider.TabIndex = 3;
             resizeSlider.TickFrequency = 10;
             tooltips.SetToolTip(resizeSlider, "The percentage to decrease the output resolution by. Lower values will help improve performance and decrease file size.\r\n");
@@ -333,7 +325,7 @@ namespace FAIC
             resizeDimensionContainer.Dock = DockStyle.Fill;
             resizeDimensionContainer.Location = new Point(101, 49);
             resizeDimensionContainer.Name = "resizeDimensionContainer";
-            resizeDimensionContainer.Size = new Size(214, 21);
+            resizeDimensionContainer.Size = new Size(216, 21);
             resizeDimensionContainer.TabIndex = 5;
             // 
             // resizeDimensionValue
@@ -345,83 +337,23 @@ namespace FAIC
             resizeDimensionValue.Maximum = new decimal(new int[] { 16384, 0, 0, 0 });
             resizeDimensionValue.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             resizeDimensionValue.Name = "resizeDimensionValue";
-            resizeDimensionValue.Size = new Size(214, 23);
+            resizeDimensionValue.Size = new Size(216, 23);
             resizeDimensionValue.TabIndex = 0;
             tooltips.SetToolTip(resizeDimensionValue, "The desired output resolution in pixels of the largest dimension. The other dimension will be rescaled as well to preserve the aspect ratio.");
             resizeDimensionValue.Value = new decimal(new int[] { 1, 0, 0, 0 });
             resizeDimensionValue.ValueChanged += resizeDimensionValue_ValueChanged;
             // 
-            // samplingLabel
-            // 
-            samplingLabel.AutoSize = true;
-            samplingLabel.Dock = DockStyle.Fill;
-            samplingLabel.Location = new Point(2, 73);
-            samplingLabel.Margin = new Padding(2, 0, 2, 0);
-            samplingLabel.MinimumSize = new Size(45, 0);
-            samplingLabel.Name = "samplingLabel";
-            samplingLabel.Size = new Size(94, 27);
-            samplingLabel.TabIndex = 6;
-            samplingLabel.Text = "Sampling";
-            samplingLabel.TextAlign = ContentAlignment.MiddleRight;
-            // 
-            // samplingLayoutPanel
-            // 
-            samplingLayoutPanel.AutoSize = true;
-            samplingLayoutPanel.ColumnCount = 2;
-            samplingLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            samplingLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            samplingLayoutPanel.Controls.Add(sampleFastRadio, 0, 0);
-            samplingLayoutPanel.Controls.Add(sampleBestRadio, 1, 0);
-            samplingLayoutPanel.Dock = DockStyle.Fill;
-            samplingLayoutPanel.Enabled = false;
-            samplingLayoutPanel.Location = new Point(100, 75);
-            samplingLayoutPanel.Margin = new Padding(2);
-            samplingLayoutPanel.Name = "samplingLayoutPanel";
-            samplingLayoutPanel.RowCount = 1;
-            samplingLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            samplingLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            samplingLayoutPanel.Size = new Size(216, 23);
-            samplingLayoutPanel.TabIndex = 7;
-            // 
-            // sampleFastRadio
-            // 
-            sampleFastRadio.AccessibleName = "Fast resampling algorithm button";
-            sampleFastRadio.AutoSize = true;
-            sampleFastRadio.Checked = true;
-            sampleFastRadio.Location = new Point(2, 2);
-            sampleFastRadio.Margin = new Padding(2);
-            sampleFastRadio.Name = "sampleFastRadio";
-            sampleFastRadio.Size = new Size(46, 19);
-            sampleFastRadio.TabIndex = 0;
-            sampleFastRadio.TabStop = true;
-            sampleFastRadio.Text = "Fast";
-            tooltips.SetToolTip(sampleFastRadio, "Use billinear for resizing. Fast, but can lead to aliasing and shimmer in motion at lower resolutions, and worse contrast at higher resolutions.");
-            sampleFastRadio.UseVisualStyleBackColor = true;
-            // 
-            // sampleBestRadio
-            // 
-            sampleBestRadio.AccessibleName = "Best resampling algorithm button";
-            sampleBestRadio.AutoSize = true;
-            sampleBestRadio.Location = new Point(110, 2);
-            sampleBestRadio.Margin = new Padding(2);
-            sampleBestRadio.Name = "sampleBestRadio";
-            sampleBestRadio.Size = new Size(47, 19);
-            sampleBestRadio.TabIndex = 1;
-            sampleBestRadio.Text = "Best";
-            tooltips.SetToolTip(sampleBestRadio, "Use Lanczos for resizing to smaller, and Spline36 for resizing to larger. Best quality, but slower.");
-            sampleBestRadio.UseVisualStyleBackColor = true;
-            // 
             // settingsDivider1
             // 
             settingsDivider1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             settingsTable.SetColumnSpan(settingsDivider1, 2);
-            settingsDivider1.Location = new Point(2, 102);
+            settingsDivider1.Location = new Point(2, 75);
             settingsDivider1.Margin = new Padding(2);
             settingsDivider1.MaximumSize = new Size(0, 8);
             settingsDivider1.MinimumSize = new Size(0, 8);
             settingsDivider1.Name = "settingsDivider1";
-            settingsDivider1.Size = new Size(314, 8);
-            settingsDivider1.TabIndex = 8;
+            settingsDivider1.Size = new Size(316, 8);
+            settingsDivider1.TabIndex = 6;
             // 
             // trimColumnLayoutPanel
             // 
@@ -433,13 +365,13 @@ namespace FAIC
             trimColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             trimColumnLayoutPanel.Controls.Add(trimLabel, 0, 0);
             trimColumnLayoutPanel.Controls.Add(firstFrame, 1, 0);
-            trimColumnLayoutPanel.Location = new Point(0, 112);
+            trimColumnLayoutPanel.Location = new Point(0, 85);
             trimColumnLayoutPanel.Margin = new Padding(0);
             trimColumnLayoutPanel.Name = "trimColumnLayoutPanel";
             trimColumnLayoutPanel.RowCount = 1;
             trimColumnLayoutPanel.RowStyles.Add(new RowStyle());
             trimColumnLayoutPanel.Size = new Size(98, 29);
-            trimColumnLayoutPanel.TabIndex = 9;
+            trimColumnLayoutPanel.TabIndex = 7;
             // 
             // trimLabel
             // 
@@ -472,10 +404,10 @@ namespace FAIC
             firstFrameContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             firstFrameContainer.Controls.Add(firstFrameInput);
             firstFrameContainer.Dock = DockStyle.Fill;
-            firstFrameContainer.Location = new Point(101, 115);
+            firstFrameContainer.Location = new Point(101, 88);
             firstFrameContainer.Name = "firstFrameContainer";
-            firstFrameContainer.Size = new Size(214, 23);
-            firstFrameContainer.TabIndex = 10;
+            firstFrameContainer.Size = new Size(216, 23);
+            firstFrameContainer.TabIndex = 8;
             // 
             // firstFrameInput
             // 
@@ -486,7 +418,7 @@ namespace FAIC
             firstFrameInput.Location = new Point(0, 0);
             firstFrameInput.Margin = new Padding(2);
             firstFrameInput.Name = "firstFrameInput";
-            firstFrameInput.Size = new Size(214, 23);
+            firstFrameInput.Size = new Size(216, 23);
             firstFrameInput.TabIndex = 0;
             tooltips.SetToolTip(firstFrameInput, "Where to start the converted output relative to the source media in seconds.\r\n\r\n");
             firstFrameInput.ValueChanged += firstFrameInput_ValueChanged;
@@ -495,12 +427,12 @@ namespace FAIC
             // 
             lastFrameLabel.AutoSize = true;
             lastFrameLabel.Dock = DockStyle.Fill;
-            lastFrameLabel.Location = new Point(2, 141);
+            lastFrameLabel.Location = new Point(2, 114);
             lastFrameLabel.Margin = new Padding(2, 0, 2, 0);
             lastFrameLabel.MinimumSize = new Size(45, 0);
             lastFrameLabel.Name = "lastFrameLabel";
             lastFrameLabel.Size = new Size(94, 29);
-            lastFrameLabel.TabIndex = 11;
+            lastFrameLabel.TabIndex = 9;
             lastFrameLabel.Text = "End";
             lastFrameLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
@@ -510,10 +442,10 @@ namespace FAIC
             lastFrameContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             lastFrameContainer.Controls.Add(lastFrameInput);
             lastFrameContainer.Dock = DockStyle.Fill;
-            lastFrameContainer.Location = new Point(101, 144);
+            lastFrameContainer.Location = new Point(101, 117);
             lastFrameContainer.Name = "lastFrameContainer";
-            lastFrameContainer.Size = new Size(214, 23);
-            lastFrameContainer.TabIndex = 12;
+            lastFrameContainer.Size = new Size(216, 23);
+            lastFrameContainer.TabIndex = 10;
             // 
             // lastFrameInput
             // 
@@ -524,7 +456,7 @@ namespace FAIC
             lastFrameInput.Location = new Point(0, 0);
             lastFrameInput.Margin = new Padding(2);
             lastFrameInput.Name = "lastFrameInput";
-            lastFrameInput.Size = new Size(214, 23);
+            lastFrameInput.Size = new Size(216, 23);
             lastFrameInput.TabIndex = 0;
             tooltips.SetToolTip(lastFrameInput, "Where to end the converted output relative to the source media in seconds.\r\n");
             // 
@@ -532,19 +464,19 @@ namespace FAIC
             // 
             settingsDivider2.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             settingsTable.SetColumnSpan(settingsDivider2, 2);
-            settingsDivider2.Location = new Point(2, 172);
+            settingsDivider2.Location = new Point(2, 145);
             settingsDivider2.Margin = new Padding(2);
             settingsDivider2.MaximumSize = new Size(0, 8);
             settingsDivider2.MinimumSize = new Size(0, 8);
             settingsDivider2.Name = "settingsDivider2";
-            settingsDivider2.Size = new Size(314, 8);
+            settingsDivider2.Size = new Size(316, 8);
             settingsDivider2.TabIndex = 13;
             // 
             // speedLabel
             // 
             speedLabel.AutoSize = true;
             speedLabel.Dock = DockStyle.Fill;
-            speedLabel.Location = new Point(2, 182);
+            speedLabel.Location = new Point(2, 155);
             speedLabel.Margin = new Padding(2, 0, 2, 0);
             speedLabel.Name = "speedLabel";
             speedLabel.Size = new Size(94, 23);
@@ -560,27 +492,58 @@ namespace FAIC
             speedSlider.DataBindings.Add(new Binding("DataContext", settingsBindingSource, "Quality", true));
             speedSlider.DataBindings.Add(new Binding("Value", settingsBindingSource, "Quality", true, DataSourceUpdateMode.OnPropertyChanged));
             speedSlider.LargeChange = 1;
-            speedSlider.Location = new Point(100, 184);
+            speedSlider.Location = new Point(100, 157);
             speedSlider.Margin = new Padding(2);
             speedSlider.Maximum = 16;
             speedSlider.Name = "speedSlider";
-            speedSlider.Size = new Size(216, 19);
+            speedSlider.Size = new Size(218, 19);
             speedSlider.TabIndex = 15;
             tooltips.SetToolTip(speedSlider, "The percentage to decrease the output resolution by. Lower values will help improve performance and decrease file size.\r\n");
             speedSlider.Value = 5;
             speedSlider.Scroll += speedSlider_Scroll;
             // 
+            // fpsColumnLayoutPanel
+            // 
+            fpsColumnLayoutPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            fpsColumnLayoutPanel.AutoSize = true;
+            fpsColumnLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            fpsColumnLayoutPanel.ColumnCount = 2;
+            fpsColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle());
+            fpsColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            fpsColumnLayoutPanel.Controls.Add(fpsLabel, 0, 0);
+            fpsColumnLayoutPanel.Controls.Add(fpsModeLabel, 1, 0);
+            fpsColumnLayoutPanel.Location = new Point(0, 178);
+            fpsColumnLayoutPanel.Margin = new Padding(0);
+            fpsColumnLayoutPanel.Name = "fpsColumnLayoutPanel";
+            fpsColumnLayoutPanel.RowCount = 1;
+            fpsColumnLayoutPanel.RowStyles.Add(new RowStyle());
+            fpsColumnLayoutPanel.Size = new Size(98, 27);
+            fpsColumnLayoutPanel.TabIndex = 29;
+            // 
             // fpsLabel
             // 
             fpsLabel.AutoSize = true;
             fpsLabel.Dock = DockStyle.Fill;
-            fpsLabel.Location = new Point(2, 205);
+            fpsLabel.Location = new Point(2, 0);
             fpsLabel.Margin = new Padding(2, 0, 2, 0);
             fpsLabel.Name = "fpsLabel";
-            fpsLabel.Size = new Size(94, 27);
-            fpsLabel.TabIndex = 16;
-            fpsLabel.Text = "Frame Rate";
+            fpsLabel.Size = new Size(26, 27);
+            fpsLabel.TabIndex = 6;
+            fpsLabel.Text = "FPS";
             fpsLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // fpsModeLabel
+            // 
+            fpsModeLabel.AutoSize = true;
+            fpsModeLabel.Dock = DockStyle.Fill;
+            fpsModeLabel.Location = new Point(32, 0);
+            fpsModeLabel.Margin = new Padding(2, 0, 2, 0);
+            fpsModeLabel.MinimumSize = new Size(45, 0);
+            fpsModeLabel.Name = "fpsModeLabel";
+            fpsModeLabel.Size = new Size(64, 27);
+            fpsModeLabel.TabIndex = 7;
+            fpsModeLabel.Text = "Mode";
+            fpsModeLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
             // fpsSetting
             // 
@@ -588,24 +551,26 @@ namespace FAIC
             fpsSetting.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             fpsSetting.FormattingEnabled = true;
             fpsSetting.Items.AddRange(new object[] { "Same", "Nearest", "Blended" });
-            fpsSetting.Location = new Point(100, 207);
+            fpsSetting.Location = new Point(100, 180);
             fpsSetting.Margin = new Padding(2);
             fpsSetting.MaxDropDownItems = 3;
             fpsSetting.Name = "fpsSetting";
-            fpsSetting.Size = new Size(216, 23);
+            fpsSetting.Size = new Size(218, 23);
             fpsSetting.TabIndex = 17;
             tooltips.SetToolTip(fpsSetting, resources.GetString("fpsSetting.ToolTip"));
             fpsSetting.SelectedIndexChanged += fpsSetting_SelectedIndexChanged;
             // 
-            // fpsSpacerPanel
+            // fpsTargetLabel
             // 
-            fpsSpacerPanel.AutoSize = true;
-            fpsSpacerPanel.Dock = DockStyle.Fill;
-            fpsSpacerPanel.Location = new Point(2, 234);
-            fpsSpacerPanel.Margin = new Padding(2);
-            fpsSpacerPanel.Name = "fpsSpacerPanel";
-            fpsSpacerPanel.Size = new Size(94, 25);
-            fpsSpacerPanel.TabIndex = 18;
+            fpsTargetLabel.AutoSize = true;
+            fpsTargetLabel.Dock = DockStyle.Fill;
+            fpsTargetLabel.Location = new Point(2, 205);
+            fpsTargetLabel.Margin = new Padding(2, 0, 2, 0);
+            fpsTargetLabel.Name = "fpsTargetLabel";
+            fpsTargetLabel.Size = new Size(94, 29);
+            fpsTargetLabel.TabIndex = 28;
+            fpsTargetLabel.Text = "Target";
+            fpsTargetLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
             // fpsContainer
             // 
@@ -613,9 +578,9 @@ namespace FAIC
             fpsContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             fpsContainer.Controls.Add(fpsValue);
             fpsContainer.Dock = DockStyle.Fill;
-            fpsContainer.Location = new Point(101, 235);
+            fpsContainer.Location = new Point(101, 208);
             fpsContainer.Name = "fpsContainer";
-            fpsContainer.Size = new Size(214, 23);
+            fpsContainer.Size = new Size(216, 23);
             fpsContainer.TabIndex = 19;
             // 
             // fpsValue
@@ -629,21 +594,58 @@ namespace FAIC
             fpsValue.Margin = new Padding(2);
             fpsValue.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
             fpsValue.Name = "fpsValue";
-            fpsValue.Size = new Size(214, 23);
+            fpsValue.Size = new Size(216, 23);
             fpsValue.TabIndex = 0;
             tooltips.SetToolTip(fpsValue, "Target frame rate of the converted output.");
+            // 
+            // settingsDivider3
+            // 
+            settingsDivider3.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            settingsTable.SetColumnSpan(settingsDivider3, 2);
+            settingsDivider3.Location = new Point(2, 236);
+            settingsDivider3.Margin = new Padding(2);
+            settingsDivider3.MaximumSize = new Size(0, 8);
+            settingsDivider3.MinimumSize = new Size(0, 8);
+            settingsDivider3.Name = "settingsDivider3";
+            settingsDivider3.Size = new Size(316, 8);
+            settingsDivider3.TabIndex = 22;
+            // 
+            // formatLabel
+            // 
+            formatLabel.AutoSize = true;
+            formatLabel.Dock = DockStyle.Fill;
+            formatLabel.Location = new Point(2, 246);
+            formatLabel.Margin = new Padding(2, 0, 2, 0);
+            formatLabel.MinimumSize = new Size(45, 0);
+            formatLabel.Name = "formatLabel";
+            formatLabel.Size = new Size(94, 23);
+            formatLabel.TabIndex = 23;
+            formatLabel.Text = "Format";
+            formatLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // transparentCheckbox
+            // 
+            transparentCheckbox.AutoSize = true;
+            transparentCheckbox.Dock = DockStyle.Fill;
+            transparentCheckbox.Location = new Point(100, 248);
+            transparentCheckbox.Margin = new Padding(2);
+            transparentCheckbox.Name = "transparentCheckbox";
+            transparentCheckbox.Size = new Size(218, 19);
+            transparentCheckbox.TabIndex = 24;
+            transparentCheckbox.Text = "Transparent";
+            transparentCheckbox.UseVisualStyleBackColor = true;
             // 
             // repeatsLabel
             // 
             repeatsLabel.AutoSize = true;
             repeatsLabel.Dock = DockStyle.Fill;
-            repeatsLabel.Location = new Point(2, 261);
+            repeatsLabel.Location = new Point(2, 269);
             repeatsLabel.Margin = new Padding(2, 0, 2, 0);
             repeatsLabel.Name = "repeatsLabel";
             repeatsLabel.Size = new Size(94, 29);
             repeatsLabel.TabIndex = 20;
             repeatsLabel.Text = "Repeats";
-            repeatsLabel.TextAlign = ContentAlignment.MiddleLeft;
+            repeatsLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
             // repeatContainer
             // 
@@ -651,9 +653,9 @@ namespace FAIC
             repeatContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             repeatContainer.Controls.Add(repeatValue);
             repeatContainer.Dock = DockStyle.Fill;
-            repeatContainer.Location = new Point(101, 264);
+            repeatContainer.Location = new Point(101, 272);
             repeatContainer.Name = "repeatContainer";
-            repeatContainer.Size = new Size(214, 23);
+            repeatContainer.Size = new Size(216, 23);
             repeatContainer.TabIndex = 21;
             // 
             // repeatValue
@@ -666,64 +668,27 @@ namespace FAIC
             repeatValue.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
             repeatValue.Minimum = new decimal(new int[] { 1, 0, 0, int.MinValue });
             repeatValue.Name = "repeatValue";
-            repeatValue.Size = new Size(214, 23);
+            repeatValue.Size = new Size(216, 23);
             repeatValue.TabIndex = 0;
             tooltips.SetToolTip(repeatValue, resources.GetString("repeatValue.ToolTip"));
-            // 
-            // settingsDivider3
-            // 
-            settingsDivider3.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            settingsTable.SetColumnSpan(settingsDivider3, 2);
-            settingsDivider3.Location = new Point(2, 292);
-            settingsDivider3.Margin = new Padding(2);
-            settingsDivider3.MaximumSize = new Size(0, 8);
-            settingsDivider3.MinimumSize = new Size(0, 8);
-            settingsDivider3.Name = "settingsDivider3";
-            settingsDivider3.Size = new Size(314, 8);
-            settingsDivider3.TabIndex = 22;
-            // 
-            // transparentLabel
-            // 
-            transparentLabel.AutoSize = true;
-            transparentLabel.Dock = DockStyle.Fill;
-            transparentLabel.Location = new Point(2, 302);
-            transparentLabel.Margin = new Padding(2, 0, 2, 0);
-            transparentLabel.MinimumSize = new Size(45, 0);
-            transparentLabel.Name = "transparentLabel";
-            transparentLabel.Size = new Size(94, 23);
-            transparentLabel.TabIndex = 23;
-            transparentLabel.Text = "Format";
-            transparentLabel.TextAlign = ContentAlignment.MiddleLeft;
-            // 
-            // transparentCheckbox
-            // 
-            transparentCheckbox.AutoSize = true;
-            transparentCheckbox.Dock = DockStyle.Fill;
-            transparentCheckbox.Location = new Point(100, 304);
-            transparentCheckbox.Margin = new Padding(2);
-            transparentCheckbox.Name = "transparentCheckbox";
-            transparentCheckbox.Size = new Size(216, 19);
-            transparentCheckbox.TabIndex = 24;
-            transparentCheckbox.Text = "Transparent";
-            transparentCheckbox.UseVisualStyleBackColor = true;
             // 
             // settingsDivider4
             // 
             settingsDivider4.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             settingsTable.SetColumnSpan(settingsDivider4, 2);
-            settingsDivider4.Location = new Point(2, 327);
+            settingsDivider4.Location = new Point(2, 300);
             settingsDivider4.Margin = new Padding(2);
             settingsDivider4.MaximumSize = new Size(0, 8);
             settingsDivider4.MinimumSize = new Size(0, 8);
             settingsDivider4.Name = "settingsDivider4";
-            settingsDivider4.Size = new Size(314, 8);
+            settingsDivider4.Size = new Size(316, 8);
             settingsDivider4.TabIndex = 25;
             // 
             // advancedLabel
             // 
             advancedLabel.AutoSize = true;
             advancedLabel.Dock = DockStyle.Fill;
-            advancedLabel.Location = new Point(2, 337);
+            advancedLabel.Location = new Point(2, 310);
             advancedLabel.Margin = new Padding(2, 0, 2, 0);
             advancedLabel.MinimumSize = new Size(45, 0);
             advancedLabel.Name = "advancedLabel";
@@ -736,18 +701,77 @@ namespace FAIC
             // 
             editArgumentsCheckbox.AutoSize = true;
             editArgumentsCheckbox.Dock = DockStyle.Fill;
-            editArgumentsCheckbox.Location = new Point(100, 339);
+            editArgumentsCheckbox.Location = new Point(100, 312);
             editArgumentsCheckbox.Margin = new Padding(2);
             editArgumentsCheckbox.Name = "editArgumentsCheckbox";
-            editArgumentsCheckbox.Size = new Size(216, 19);
+            editArgumentsCheckbox.Size = new Size(218, 19);
             editArgumentsCheckbox.TabIndex = 27;
             editArgumentsCheckbox.Text = "Edit Arguments";
             editArgumentsCheckbox.UseVisualStyleBackColor = true;
             // 
+            // processingModeLabel
+            // 
+            processingModeLabel.AutoSize = true;
+            processingModeLabel.Dock = DockStyle.Fill;
+            processingModeLabel.Location = new Point(2, 333);
+            processingModeLabel.Margin = new Padding(2, 0, 2, 0);
+            processingModeLabel.MinimumSize = new Size(45, 0);
+            processingModeLabel.Name = "processingModeLabel";
+            processingModeLabel.Size = new Size(94, 27);
+            processingModeLabel.TabIndex = 6;
+            processingModeLabel.Text = "Tuning";
+            processingModeLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // processingLayoutPanel
+            // 
+            processingLayoutPanel.AutoSize = true;
+            processingLayoutPanel.ColumnCount = 2;
+            processingLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            processingLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            processingLayoutPanel.Controls.Add(processingFastRadio, 0, 0);
+            processingLayoutPanel.Controls.Add(processingBestRadio, 1, 0);
+            processingLayoutPanel.Dock = DockStyle.Fill;
+            processingLayoutPanel.Location = new Point(100, 335);
+            processingLayoutPanel.Margin = new Padding(2);
+            processingLayoutPanel.Name = "processingLayoutPanel";
+            processingLayoutPanel.RowCount = 1;
+            processingLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            processingLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            processingLayoutPanel.Size = new Size(218, 23);
+            processingLayoutPanel.TabIndex = 7;
+            // 
+            // processingFastRadio
+            // 
+            processingFastRadio.AccessibleName = "Fast resampling algorithm button";
+            processingFastRadio.AutoSize = true;
+            processingFastRadio.Checked = true;
+            processingFastRadio.Location = new Point(2, 2);
+            processingFastRadio.Margin = new Padding(2);
+            processingFastRadio.Name = "processingFastRadio";
+            processingFastRadio.Size = new Size(46, 19);
+            processingFastRadio.TabIndex = 0;
+            processingFastRadio.TabStop = true;
+            processingFastRadio.Text = "Fast";
+            tooltips.SetToolTip(processingFastRadio, "Preset for prioritise conversion speed.");
+            processingFastRadio.UseVisualStyleBackColor = true;
+            // 
+            // processingBestRadio
+            // 
+            processingBestRadio.AccessibleName = "Best resampling algorithm button";
+            processingBestRadio.AutoSize = true;
+            processingBestRadio.Location = new Point(111, 2);
+            processingBestRadio.Margin = new Padding(2);
+            processingBestRadio.Name = "processingBestRadio";
+            processingBestRadio.Size = new Size(47, 19);
+            processingBestRadio.TabIndex = 1;
+            processingBestRadio.Text = "Best";
+            tooltips.SetToolTip(processingBestRadio, "Preset for prioritising output quality.");
+            processingBestRadio.UseVisualStyleBackColor = true;
+            // 
             // mainSplit
             // 
             mainSplit.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            mainSplit.Location = new Point(8, 7);
+            mainSplit.Location = new Point(2, 2);
             mainSplit.Margin = new Padding(2);
             mainSplit.Name = "mainSplit";
             // 
@@ -760,8 +784,8 @@ namespace FAIC
             // 
             mainSplit.Panel2.Controls.Add(conversionPanel);
             mainSplit.Panel2MinSize = 320;
-            mainSplit.Size = new Size(767, 518);
-            mainSplit.SplitterDistance = 438;
+            mainSplit.Size = new Size(780, 524);
+            mainSplit.SplitterDistance = 445;
             mainSplit.SplitterWidth = 3;
             mainSplit.TabIndex = 0;
             mainSplit.SplitterMoved += mainSplit_SplitterMoved;
@@ -778,7 +802,7 @@ namespace FAIC
             videoPanelTable.RowCount = 2;
             videoPanelTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             videoPanelTable.RowStyles.Add(new RowStyle());
-            videoPanelTable.Size = new Size(438, 518);
+            videoPanelTable.Size = new Size(445, 524);
             videoPanelTable.TabIndex = 0;
             // 
             // videoContainingPanel
@@ -788,16 +812,17 @@ namespace FAIC
             videoContainingPanel.Location = new Point(2, 2);
             videoContainingPanel.Margin = new Padding(2);
             videoContainingPanel.Name = "videoContainingPanel";
-            videoContainingPanel.Size = new Size(434, 451);
+            videoContainingPanel.Padding = new Padding(2);
+            videoContainingPanel.Size = new Size(441, 463);
             videoContainingPanel.TabIndex = 0;
             // 
             // videoPreviewHost
             // 
             videoPreviewHost.Dock = DockStyle.Fill;
-            videoPreviewHost.Location = new Point(0, 0);
+            videoPreviewHost.Location = new Point(2, 2);
             videoPreviewHost.Margin = new Padding(2);
             videoPreviewHost.Name = "videoPreview";
-            videoPreviewHost.Size = new Size(434, 451);
+            videoPreviewHost.Size = new Size(437, 459);
             videoPreviewHost.TabIndex = 0;
             // 
             // previewControlsPanel
@@ -813,12 +838,13 @@ namespace FAIC
             previewControlsPanel.Controls.Add(trimEndHereButton, 2, 0);
             previewControlsPanel.Controls.Add(playbackConsoleTable, 1, 1);
             previewControlsPanel.Dock = DockStyle.Bottom;
-            previewControlsPanel.Location = new Point(3, 458);
+            previewControlsPanel.Location = new Point(0, 467);
+            previewControlsPanel.Margin = new Padding(0);
             previewControlsPanel.Name = "previewControlsPanel";
             previewControlsPanel.RowCount = 2;
             previewControlsPanel.RowStyles.Add(new RowStyle());
             previewControlsPanel.RowStyles.Add(new RowStyle());
-            previewControlsPanel.Size = new Size(432, 57);
+            previewControlsPanel.Size = new Size(445, 57);
             previewControlsPanel.TabIndex = 1;
             // 
             // trimStartHereButton
@@ -849,7 +875,7 @@ namespace FAIC
             playhead.Margin = new Padding(2);
             playhead.Maximum = 1000;
             playhead.Name = "playhead";
-            playhead.Size = new Size(368, 24);
+            playhead.Size = new Size(381, 24);
             playhead.SmallChange = 1000;
             playhead.TabIndex = 1;
             playhead.TickFrequency = 1000;
@@ -862,7 +888,7 @@ namespace FAIC
             trimEndHereButton.AutoSize = true;
             trimEndHereButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             trimEndHereButton.Dock = DockStyle.Fill;
-            trimEndHereButton.Location = new Point(404, 2);
+            trimEndHereButton.Location = new Point(417, 2);
             trimEndHereButton.Margin = new Padding(2);
             trimEndHereButton.Name = "trimEndHereButton";
             previewControlsPanel.SetRowSpan(trimEndHereButton, 2);
@@ -891,7 +917,7 @@ namespace FAIC
             playbackConsoleTable.Name = "playbackConsoleTable";
             playbackConsoleTable.RowCount = 1;
             playbackConsoleTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            playbackConsoleTable.Size = new Size(372, 25);
+            playbackConsoleTable.Size = new Size(385, 25);
             playbackConsoleTable.TabIndex = 3;
             // 
             // reverseSeekButton
@@ -903,7 +929,7 @@ namespace FAIC
             reverseSeekButton.Location = new Point(2, 0);
             reverseSeekButton.Margin = new Padding(2, 0, 2, 0);
             reverseSeekButton.Name = "reverseSeekButton";
-            reverseSeekButton.Size = new Size(119, 25);
+            reverseSeekButton.Size = new Size(124, 25);
             reverseSeekButton.TabIndex = 0;
             reverseSeekButton.Text = "Previous Frame";
             tooltips.SetToolTip(reverseSeekButton, "Go to the previous frame in the media. This may cause the program to freeze for a bit.");
@@ -916,10 +942,10 @@ namespace FAIC
             playButton.AutoSize = true;
             playButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             playButton.Dock = DockStyle.Fill;
-            playButton.Location = new Point(125, 0);
+            playButton.Location = new Point(130, 0);
             playButton.Margin = new Padding(2, 0, 2, 0);
             playButton.Name = "playButton";
-            playButton.Size = new Size(119, 25);
+            playButton.Size = new Size(124, 25);
             playButton.TabIndex = 1;
             playButton.Text = "Play";
             tooltips.SetToolTip(playButton, "Start playing the media from the current playhead position.");
@@ -932,10 +958,10 @@ namespace FAIC
             seekButton.AutoSize = true;
             seekButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             seekButton.Dock = DockStyle.Fill;
-            seekButton.Location = new Point(248, 0);
+            seekButton.Location = new Point(258, 0);
             seekButton.Margin = new Padding(2, 0, 2, 0);
             seekButton.Name = "seekButton";
-            seekButton.Size = new Size(122, 25);
+            seekButton.Size = new Size(125, 25);
             seekButton.TabIndex = 2;
             seekButton.Text = "Next Frame";
             tooltips.SetToolTip(seekButton, resources.GetString("seekButton.ToolTip"));
@@ -953,13 +979,14 @@ namespace FAIC
             conversionPanel.Location = new Point(0, 0);
             conversionPanel.Margin = new Padding(2);
             conversionPanel.Name = "conversionPanel";
+            conversionPanel.Padding = new Padding(2);
             conversionPanel.RowCount = 2;
             conversionPanel.RowStyles.Add(new RowStyle());
             conversionPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             conversionPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 12F));
             conversionPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 12F));
             conversionPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 12F));
-            conversionPanel.Size = new Size(326, 518);
+            conversionPanel.Size = new Size(332, 524);
             conversionPanel.TabIndex = 0;
             // 
             // commandLinePaddingPanel
@@ -967,23 +994,39 @@ namespace FAIC
             commandLinePaddingPanel.BackColor = SystemColors.Window;
             commandLinePaddingPanel.Controls.Add(commandLineOutput);
             commandLinePaddingPanel.Dock = DockStyle.Fill;
-            commandLinePaddingPanel.Location = new Point(2, 384);
+            commandLinePaddingPanel.Location = new Point(4, 386);
             commandLinePaddingPanel.Margin = new Padding(2);
             commandLinePaddingPanel.Name = "commandLinePaddingPanel";
             commandLinePaddingPanel.Padding = new Padding(6);
-            commandLinePaddingPanel.Size = new Size(322, 132);
+            commandLinePaddingPanel.Size = new Size(324, 134);
             commandLinePaddingPanel.TabIndex = 1;
             // 
             // actionsPanel
             // 
-            actionsPanel.Controls.Add(cancelButton);
+            actionsPanel.AutoSize = true;
+            actionsPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             actionsPanel.Controls.Add(convertButton);
-            actionsPanel.Dock = DockStyle.Bottom;
-            actionsPanel.Location = new Point(0, 528);
-            actionsPanel.Margin = new Padding(2);
+            actionsPanel.Dock = DockStyle.Fill;
+            actionsPanel.Location = new Point(4, 532);
+            actionsPanel.Margin = new Padding(4);
             actionsPanel.Name = "actionsPanel";
-            actionsPanel.Size = new Size(784, 33);
+            actionsPanel.Size = new Size(776, 25);
             actionsPanel.TabIndex = 1;
+            // 
+            // masterLayout
+            // 
+            masterLayout.ColumnCount = 1;
+            masterLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            masterLayout.Controls.Add(mainSplit, 0, 0);
+            masterLayout.Controls.Add(actionsPanel, 0, 1);
+            masterLayout.Dock = DockStyle.Fill;
+            masterLayout.Location = new Point(0, 0);
+            masterLayout.Name = "masterLayout";
+            masterLayout.RowCount = 2;
+            masterLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            masterLayout.RowStyles.Add(new RowStyle());
+            masterLayout.Size = new Size(784, 561);
+            masterLayout.TabIndex = 2;
             // 
             // Main
             // 
@@ -991,8 +1034,7 @@ namespace FAIC
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(784, 561);
-            Controls.Add(mainSplit);
-            Controls.Add(actionsPanel);
+            Controls.Add(masterLayout);
             HelpButton = true;
             Icon = (Icon)resources.GetObject("$this.Icon");
             Margin = new Padding(2);
@@ -1009,8 +1051,6 @@ namespace FAIC
             ((System.ComponentModel.ISupportInitialize)resizeSlider).EndInit();
             resizeDimensionContainer.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)resizeDimensionValue).EndInit();
-            samplingLayoutPanel.ResumeLayout(false);
-            samplingLayoutPanel.PerformLayout();
             trimColumnLayoutPanel.ResumeLayout(false);
             trimColumnLayoutPanel.PerformLayout();
             firstFrameContainer.ResumeLayout(false);
@@ -1020,12 +1060,16 @@ namespace FAIC
             lastFrameContainer.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)lastFrameInput).EndInit();
             ((System.ComponentModel.ISupportInitialize)speedSlider).EndInit();
+            fpsColumnLayoutPanel.ResumeLayout(false);
+            fpsColumnLayoutPanel.PerformLayout();
             fpsContainer.ResumeLayout(false);
             fpsContainer.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)fpsValue).EndInit();
             repeatContainer.ResumeLayout(false);
             repeatContainer.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)repeatValue).EndInit();
+            processingLayoutPanel.ResumeLayout(false);
+            processingLayoutPanel.PerformLayout();
             mainSplit.Panel1.ResumeLayout(false);
             mainSplit.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)mainSplit).EndInit();
@@ -1042,6 +1086,9 @@ namespace FAIC
             conversionPanel.PerformLayout();
             commandLinePaddingPanel.ResumeLayout(false);
             actionsPanel.ResumeLayout(false);
+            actionsPanel.PerformLayout();
+            masterLayout.ResumeLayout(false);
+            masterLayout.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -1050,7 +1097,6 @@ namespace FAIC
         private Button convertButton;
         private Label qualityLabel;
         private SaveFileDialog saveFileDialogue;
-        private Button cancelButton;
         private RichTextBox commandLineOutput;
         private GroupBox settingsGroupBox;
         private SplitContainer mainSplit;
@@ -1068,7 +1114,6 @@ namespace FAIC
         private TableLayoutPanel settingsTable;
         private TableLayoutPanel conversionPanel;
         private BindingSource settingsBindingSource;
-        private Label fpsLabel;
         private NumericUpDown fpsValue;
         private ComboBox fpsSetting;
         private TrackBar resizeSlider;
@@ -1083,15 +1128,14 @@ namespace FAIC
         private NumericUpDown lastFrameInput;
         private Label firstFrame;
         private TableLayoutPanel trimColumnLayoutPanel;
-        private Panel fpsSpacerPanel;
-        private Label samplingLabel;
-        private TableLayoutPanel samplingLayoutPanel;
-        private RadioButton sampleBestRadio;
-        private RadioButton sampleFastRadio;
+        private Label processingModeLabel;
+        private TableLayoutPanel processingLayoutPanel;
+        private RadioButton processingBestRadio;
+        private RadioButton processingFastRadio;
         private Panel commandLinePaddingPanel;
         private Button reverseSeekButton;
         private CheckBox transparentCheckbox;
-        private Label transparentLabel;
+        private Label formatLabel;
         private Panel settingsDivider2;
         private Panel settingsDivider1;
         private Panel settingsDivider3;
@@ -1106,5 +1150,10 @@ namespace FAIC
         private Label advancedLabel;
         private CheckBox editArgumentsCheckbox;
         private Panel settingsDivider4;
+        private Label fpsTargetLabel;
+        private TableLayoutPanel fpsColumnLayoutPanel;
+        private Label fpsLabel;
+        private Label fpsModeLabel;
+        private TableLayoutPanel masterLayout;
     }
 }

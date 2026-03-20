@@ -2,6 +2,10 @@
 {
     public struct EncodeSettings
     {
+        public enum TuningSetting
+        {
+            Fast, Best
+        }
         public enum ResampleSetting
         {
             None, Bilinear, Lanczos, Spline36
@@ -13,12 +17,14 @@
         public string InputPath;
         public string InputFormat;
         public string OutputPath;
+        public ConvertJobTarget OutputFormat;
         /// <summary>
         /// From 0 to 100
         /// </summary>
         public int Quality;
         public int Width, Height;
         public ResampleSetting Resample;
+        public TuningSetting Tuning;
         public decimal Start, End;
         public double Speed;
         public decimal TargetFrameRate;
@@ -26,6 +32,43 @@
         public int Repeats;
         public bool Transparent;
         public Func<ArgumentsWindowInputs, ArgumentsWindowOutputs> onBeforeArguments;
+        public EncodeSettings(int largestTargetDimension, int largestOriginalDimension, bool preferFast, bool preferBest)
+        {
+            if (preferFast)
+            {
+                Tuning = TuningSetting.Fast;
+                if (largestTargetDimension == largestOriginalDimension)
+                {
+                    Resample = ResampleSetting.None;
+                }
+                else
+                {
+                    Resample = ResampleSetting.Bilinear;
+                }
+            }
+            else if (preferBest)
+            {
+                Tuning = TuningSetting.Best;
+                if (largestTargetDimension == largestOriginalDimension)
+                {
+                    Resample = ResampleSetting.None;
+                }
+                else if (largestTargetDimension < largestOriginalDimension)
+                {
+                    Resample = ResampleSetting.Lanczos;
+                }
+                else
+                {
+                    Resample = ResampleSetting.Spline36;
+                }
+            }
+            else
+            {
+                Program.TryOutput(ConsoleMessageType.Warning, "Failed to determine tuning. Defaulting to fast.");
+                Tuning = TuningSetting.Fast;
+                Resample = ResampleSetting.Bilinear;
+            }
+        }
         public static bool IsFormatTransparencySupported(string format)
         {
             string lowerFormat = format.ToLower();
@@ -90,7 +133,7 @@
                 }
             }
 
-            return "-y -threads 0 " +
+            return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 " +
                 $"-ss {Start} -to {End} " +
                 decoderOverride +
                 $"-i \"{InputPath}\" " +
