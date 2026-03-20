@@ -524,8 +524,20 @@ namespace FAIC
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop, false);
 
-            InputPath = files[0];
-            Program.TryOutput(ConsoleMessageType.System, $"Set input file to file at path \"{InputPath}\"");
+            FileAttributes attr = File.GetAttributes(files[0]);
+            if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+            {
+                using (var importer = new FolderImporter(files[0]))
+                {
+                    importer.ShowDialog(this);
+                }
+            }
+            //TODO: instead of else, use the importer as an intercept to getting a txt file instead.
+            else
+            {
+                Program.TryOutput(ConsoleMessageType.System, $"Set input file to file at path \"{InputPath}\"");
+                InputPath = files[0];
+            }
         }
         private void OnDragEnter(object sender, DragEventArgs e)
         {
