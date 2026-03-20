@@ -5,7 +5,9 @@
         System,
         Warning,
         Error,
-        Tip
+        Tip,
+        Progress,
+        Success
     }
     public static class ConsoleMessageTypeUtils
     {
@@ -18,16 +20,18 @@
                 ConsoleMessageType.Warning => "Warning",
                 ConsoleMessageType.Error => "Error",
                 ConsoleMessageType.Tip => "Tip",
+                ConsoleMessageType.Progress or ConsoleMessageType.Success => "Progress",
                 _ => "Message"
             };
             finalMessage += "] " + message;
             console.AppendLog(finalMessage, color: type switch
             {
-                ConsoleMessageType.Warning => Color.Yellow,
-                ConsoleMessageType.Tip => Color.Blue,
-                ConsoleMessageType.Error => Color.Red,
+                ConsoleMessageType.Warning => Color.Goldenrod,
+                ConsoleMessageType.Tip or ConsoleMessageType.Progress => Color.RoyalBlue,
+                ConsoleMessageType.Error => Color.DarkRed,
+                ConsoleMessageType.Success => Color.Green,
                 _ => null
-            });
+            }, true);
         }
     }
 }

@@ -1,6 +1,4 @@
-﻿using static FAIC.Types.EncodeSettings;
-
-namespace FAIC.Types
+﻿namespace FAIC.Types
 {
     public struct EncodeSettings
     {

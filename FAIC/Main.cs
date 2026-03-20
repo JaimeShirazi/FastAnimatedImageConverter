@@ -67,7 +67,7 @@ namespace FAIC
             InputPath = inputPath;
             if (string.IsNullOrEmpty(inputPath))
             {
-                AppendLog("Drag a media file onto the window to convert it!");
+                Program.TryOutput(ConsoleMessageType.Tip, "Drag a media file onto the window to convert it!");
             }
 
             fpsSetting.SelectedIndex = 0;
@@ -99,12 +99,13 @@ namespace FAIC
             convertButton.Enabled = hadInfo;
             if (!hadInfo)
             {
-                AppendLog("Unable to read media.");
+                Program.TryOutput(ConsoleMessageType.Error, "Unable to read media.");
+                AppendLog("");
                 return;
             }
             else
             {
-                AppendLog($"Detected media: {info}");
+                Program.TryOutput(ConsoleMessageType.System, $"Detected media: {info}");
             }
             if (info.Width.ReadData && info.Height.ReadData)
             {
@@ -330,32 +331,40 @@ namespace FAIC
         #endregion
         #region Console
         const int MAX_LINES = 2000;
-        public void AppendLog(string msg, System.Drawing.Color? color = null)
+        public void AppendLog(string msg, System.Drawing.Color? color = null, bool bold = false)
         {
             if (InvokeRequired)
             {
-                BeginInvoke(() => AppendLog(msg));
+                BeginInvoke(() => AppendLog(msg, color, bold));
                 return;
             }
 
-            System.Drawing.Color prevColorBuffer = commandLineOutput.SelectionColor;
-            if (color.HasValue) commandLineOutput.SelectionColor = color.Value;
-
-            commandLineOutput.AppendText(msg + Environment.NewLine);
-
-            if (color.HasValue) commandLineOutput.SelectionColor = prevColorBuffer;
-
-            if (commandLineOutput.Lines.Length > MAX_LINES)
+            try
             {
-                var lines = commandLineOutput.Lines.Skip(commandLineOutput.Lines.Length - MAX_LINES).ToArray();
-                commandLineOutput.Lines = lines;
+                Font prevSelectionFont = commandLineOutput.SelectionFont;
+                System.Drawing.Color prevColorBuffer = commandLineOutput.SelectionColor;
+                if (color.HasValue) commandLineOutput.SelectionColor = color.Value;
+                if (bold) commandLineOutput.SelectionFont = new Font(commandLineOutput.Font, FontStyle.Bold);
+
+                commandLineOutput.AppendText(msg + Environment.NewLine);
+
+                if (bold) commandLineOutput.SelectionFont = prevSelectionFont;
+                if (color.HasValue) commandLineOutput.SelectionColor = prevColorBuffer;
+
+                if (commandLineOutput.Lines.Length > MAX_LINES)
+                {
+                    var lines = commandLineOutput.Lines.Skip(commandLineOutput.Lines.Length - MAX_LINES).ToArray();
+                    commandLineOutput.Lines = lines;
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                //Ignore - application shutting down
             }
         }
         #endregion
         #endregion
         #region Encoding
-        private CancellationTokenSource? _encodeCTS;
-        private Task? _encodeTask;
         private void convertButton_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(inputPath))
@@ -365,7 +374,7 @@ namespace FAIC
 
             if (firstFrameInput.Value > lastFrameInput.Value)
             {
-                AppendLog("End time is before start time, swapping values.");
+                Program.TryOutput(ConsoleMessageType.Warning, "End time is before start time, swapping values.");
                 decimal lastFrameTimeCurrent = lastFrameInput.Value;
                 lastFrameInput.Value = firstFrameInput.Value;
                 firstFrameInput.Value = lastFrameTimeCurrent;
@@ -374,12 +383,7 @@ namespace FAIC
             saveFileDialogue.FileName = Path.GetFileNameWithoutExtension(inputPath) + "_Converted";
             if (saveFileDialogue.ShowDialog() == DialogResult.OK)
             {
-                if (_encodeTask is { IsCompleted: false })
-                    return; // already running
-
-                _encodeCTS = new CancellationTokenSource();
-
-                _encodeTask = StartEncodeAsync(saveFileDialogue.FileName, _encodeCTS.Token);
+                StartEncode(saveFileDialogue.FileName);
             }
         }
         public ArgumentsWindowOutputs DoArgumentsWindow(ArgumentsWindowInputs inputs)
@@ -399,7 +403,7 @@ namespace FAIC
                 return outputs;
             }
         }
-        private async Task StartEncodeAsync(string outputPath, CancellationToken token)
+        private void StartEncode(string outputPath)
         {
             commandLineOutput.Clear();
 
@@ -410,7 +414,7 @@ namespace FAIC
                 case "gif":
                     if (fpsValue.Value > 100)
                     {
-                        AppendLog("GIF does not support >100fps. Clamping to 100.");
+                        Program.TryOutput(ConsoleMessageType.Warning, "GIF does not support >100fps. Clamping to 100.");
                         if (GetSourceMediaFrameRate() > 100 && fpsSetting.SelectedIndex == 0)
                         {
                             fpsSetting.SelectedIndex = 1;
@@ -464,57 +468,11 @@ namespace FAIC
 
                 ConversionWindow conversion = new ConversionWindow(settings);
                 conversion.Show(this);
-
-
-
-                /*Func<ConversionWindow.Inputs, ConversionWindow> createWindow = (inputs) =>
-                {
-                    ConversionWindow window = new ConversionWindow(inputs, _encodeCTS);
-                    window.Show(this);
-                    return window;
-                };
-
-                switch (extension)
-                {
-                    case "avif":
-                    default:
-                        if (extension != "avif") AppendLog("Error: Unrecognised extension. Outputting as AVIF.");
-                        await Program.EncodeAVIF(settings, createWindow, token);
-                        break;
-                    case "gif":
-                        await Program.EncodeGIF(settings, createWindow, token);
-                        break;
-                    case "jxl":
-                        await Program.EncodeJXL(settings, createWindow, token);
-                        break;
-                    case "apng":
-                    case "png":
-                        await Program.EncodeAPNG(settings, createWindow, token);
-                        break;
-                    case "webp":
-                        await Program.EncodeWebP(settings, createWindow, token);
-                        break;
-                }*/
-
             }
-            /*catch (OperationCanceledException)
-            {
-                // user cancelled — fine
-            }*/
             catch (Exception ex)
             {
                 Program.TryOutput(ConsoleMessageType.Error, ex.Message);
             }
-            /*finally
-            {
-                convertButton.Enabled = true;
-                cancelButton.Enabled = false;
-            }*/
-        }
-        private void cancelButton_Click(object sender, EventArgs e)
-        {
-            _encodeCTS?.Cancel();
-            cancelButton.Enabled = false;
         }
         #endregion
 
@@ -567,7 +525,7 @@ namespace FAIC
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop, false);
 
             InputPath = files[0];
-            AppendLog($"Set input file to file at path \"{InputPath}\"");
+            Program.TryOutput(ConsoleMessageType.System, $"Set input file to file at path \"{InputPath}\"");
         }
         private void OnDragEnter(object sender, DragEventArgs e)
         {
@@ -582,11 +540,6 @@ namespace FAIC
         }
         protected override async void OnFormClosing(FormClosingEventArgs e)
         {
-            _encodeCTS?.Cancel();
-
-            if (_encodeTask != null)
-                await _encodeTask;
-
             if (videoPreview != null)
             {
                 await videoPreview.End();

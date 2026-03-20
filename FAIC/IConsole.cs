@@ -2,6 +2,6 @@
 {
     public interface IConsole
     {
-        public void AppendLog(string text, Color? color = null);
+        public void AppendLog(string text, Color? color = null, bool bold = false);
     }
 }

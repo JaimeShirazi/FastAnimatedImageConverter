@@ -288,7 +288,7 @@ namespace FAIC
                     arguments = outputs.arguments;
             }
 
-            TryOutput(Path.GetFileName(filename) + " " + arguments);
+            TryOutput(Path.GetFileName(filename) + " " + arguments, ConsoleMessageType.System);
 
             return ((bool redirectStdin, bool redirectStdout) setup) => CreateProcess(filename, arguments, setup.redirectStdin, setup.redirectStdout);
         }
@@ -373,7 +373,7 @@ namespace FAIC
             }
             catch (OperationCanceledException)
             {
-                TryOutput("Encode cancelled by user.");
+                TryOutput("Encode cancelled by user.", ConsoleMessageType.Error);
             }
             catch
             {
@@ -399,7 +399,7 @@ namespace FAIC
                 }
             }
         }
-        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "")
+        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "", bool suppressComplete = false)
         {
             int loops = Math.Min(settings.Repeats + 1, 0);
             string targetOutput = string.IsNullOrEmpty(outputPath) ? settings.OutputPath : outputPath;
@@ -434,11 +434,14 @@ namespace FAIC
             {
                 await ffmpeg.WaitForExitAsync(token);
                 Complete();
-                TryOutput("Complete!");
+                if (!suppressComplete)
+                {
+                    TryOutput("Complete!", ConsoleMessageType.Success);
+                }
             }
             catch (OperationCanceledException)
             {
-                TryOutput("Encode cancelled by user.");
+                TryOutput("Encode cancelled by user.", ConsoleMessageType.Error);
             }
         }
         public async Task EncodeAVIF(EncodeSettings settings, CancellationToken token)
@@ -454,11 +457,11 @@ namespace FAIC
             }
             catch (Exception e)
             {
-                TryOutput("Error " + e.Message);
+                TryOutput(e.Message, ConsoleMessageType.Error);
             }
             finally
             {
-                TryOutput("Complete!");
+                TryOutput("Complete!", ConsoleMessageType.Success);
             }
         }
         public async Task EncodeWebP(EncodeSettings settings, CancellationToken token)
@@ -476,14 +479,13 @@ namespace FAIC
                 arguments += $"-lossless 0 -q:v {webpQ} ";
             }
 
-            TryOutput("WARNING: progress does not currently display for WebP, but it is still processing. This is an issue with ffmpeg. It will say 0 frames, but it is still processing, please wait until you see the complete message.");
-            TryOutput("");
+            TryOutput("Progress does not currently display for WebP, but it is still processing. This is an issue with ffmpeg. It will say 0 frames, but it is still processing, please wait until you see the complete message.", ConsoleMessageType.Warning);
 
             await EncodeWithFFmpeg(settings, arguments, token, pixfmt: settings.Quality >= 100 ? "bgra" : (settings.Transparent ? "yuva420p" : "yuv420p"));
         }
         public async Task EncodeJXL(EncodeSettings settings, CancellationToken token)
         {
-            if (settings.Repeats >= 0) TryOutput("WARNING: Repeat count not currently supported for JXL. Output file will loop indefinitely.");
+            if (settings.Repeats >= 0) TryOutput("Repeat count not currently supported for JXL. Output file will loop indefinitely.", ConsoleMessageType.Warning);
 
             string arguments = "-c:v libjxl_anim ";
 
@@ -527,18 +529,7 @@ namespace FAIC
         {
             if (settings.Transparent)
             {
-                switch (MessageBox.Show(
-                        "Outputing GIF with transparency. This requires that temporary PNG frames are generated. Depending on your media, this may result in high temporary storage usage. Ensure that your system can handle the output resolution and framerate before proceeding.",
-                        "Higher Demand in GIF Transparent Mode",
-                        MessageBoxButtons.OKCancel,
-                        MessageBoxIcon.Warning
-                        )
-                    )
-                {
-                    case DialogResult.Cancel:
-                        TryOutput("Operation cancelled by user.");
-                        return;
-                }
+                TryOutput("Outputing GIF with transparency. This requires that temporary PNG frames are generated. Depending on your media, this may result in high temporary storage usage. Ensure that your system can handle the output resolution and framerate before proceeding.", ConsoleMessageType.Warning);
             }
             if (settings.Width > 800 || settings.Height > 800)
             {
@@ -551,7 +542,7 @@ namespace FAIC
                     )
                 {
                     case DialogResult.Cancel:
-                        TryOutput("Operation cancelled by user.");
+                        TryOutput("Operation cancelled by user.", ConsoleMessageType.Error);
                         return;
                 }
             }
@@ -588,9 +579,9 @@ namespace FAIC
                 {
                     Directory.CreateDirectory(transparentTempFramesDirectory);
 
-                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"));
+                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"), suppressComplete: true);
 
-                    TryOutput("Done preparing frames.");
+                    TryOutput("Done preparing frames.", ConsoleMessageType.Progress);
 
                     Process gifski = createGifski.Invoke((false, false));
                     gifski.StartInfo.WorkingDirectory = transparentTempFramesDirectory;
@@ -613,16 +604,16 @@ namespace FAIC
                 }
                 catch (OperationCanceledException)
                 {
-                    TryOutput("Encode cancelled by user.");
+                    TryOutput("Encode cancelled by user.", ConsoleMessageType.Error);
                 }
                 finally
                 {
                     if (Directory.Exists(transparentTempFramesDirectory))
                     {
-                        TryOutput("Cleaning up temporary files...");
+                        TryOutput("Cleaning up temporary files...", ConsoleMessageType.Progress);
                         Directory.Delete(transparentTempFramesDirectory, recursive: true);
                     }
-                    TryOutput("Complete!");
+                    TryOutput("Complete!", ConsoleMessageType.Success);
                 }
             }
             else
@@ -634,7 +625,7 @@ namespace FAIC
                 catch { }
                 finally
                 {
-                    TryOutput("Complete!");
+                    TryOutput("Complete!", ConsoleMessageType.Success);
                 }
             }
         }
