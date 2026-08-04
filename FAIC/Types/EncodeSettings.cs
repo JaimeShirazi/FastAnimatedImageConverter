@@ -32,6 +32,7 @@
         public int Repeats;
         public bool Transparent;
         public Func<ArgumentsWindowInputs, ArgumentsWindowOutputs> onBeforeArguments;
+        public bool overrideSafe;
         public EncodeSettings(int largestTargetDimension, int largestOriginalDimension, bool preferFast, bool preferBest)
         {
             if (preferFast)
@@ -133,7 +134,10 @@
                 }
             }
 
-            return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 -safe 0 " +
+            string safeOverride = overrideSafe ? "-safe 0 " : "";
+
+            return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 " +
+                safeOverride +
                 $"-ss {Start} -to {End} " +
                 decoderOverride +
                 $"-i \"{InputPath}\" " +

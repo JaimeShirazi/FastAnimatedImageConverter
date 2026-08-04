@@ -6,7 +6,7 @@ namespace FAIC.Types
     public abstract class BaseStreamData
     {
         public bool ReadData { get; private set; }
-        private readonly string key;
+        public readonly string key;
         public BaseStreamData(string key) { this.key = key; }
         public void TryRead(JsonElement element)
         {

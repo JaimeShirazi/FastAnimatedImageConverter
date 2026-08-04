@@ -8,6 +8,11 @@ namespace FAIC.Types
     /// </summary>
     public class ProbeMediaInfo : IFormattable
     {
+        private readonly string inputPath;
+        public ProbeMediaInfo(string inputPath)
+        {
+            this.inputPath = inputPath;
+        }
         public bool IsEmpty()
         {
             foreach (BaseStreamData data in GetAllData())
@@ -21,19 +26,43 @@ namespace FAIC.Types
         /// Best-guess FPS for this media. Negative when no valid FPS was found.
         /// </summary>
         public double EstimatedFrameRate =>
-            AverageFrameRate.ReadData && !AverageFrameRate.Value.IsInvalid
-            ? (double)AverageFrameRate.Value
-            : (!BaseFrameRate.Value.IsInvalid ? (double)BaseFrameRate.Value : -1);
+            OverridenFrameRate.HasValue ?
+            (double)OverridenFrameRate.Value
+            :   AverageFrameRate.ReadData && !AverageFrameRate.Value.IsInvalid
+                ? (double)AverageFrameRate.Value
+                : (!BaseFrameRate.Value.IsInvalid ? (double)BaseFrameRate.Value : -1);
 
         public ParsedStreamData<double> StreamLength = new(key: "duration");
         public ParsedStreamData<double> FormatLength = new(key: "duration");
         public ParsedStreamData<Fraction> AverageFrameRate = new(key: "avg_frame_rate");
         public ParsedStreamData<Fraction> BaseFrameRate = new(key: "r_frame_rate");
+        public decimal? OverridenFrameRate = null;
         public ParsedStreamData<int> Width = new(key: "width");
         public ParsedStreamData<int> Height = new(key: "height");
         public StringStreamData Codec = new(key: "codec_name");
+        public StringStreamData Format = new(key: "format_name");
         public ParsedStreamData<FormattedDuration> StreamTagLength = new(key: "DURATION");
 
+        public string GetInputArguments()
+        {
+            string args = "";
+            var sources = new (IEnumerable<BaseStreamData> streams, string source)[]
+            {
+                (GetAllStreamData(), "stream"),
+                (GetAllStreamTagData(), "stream_tags"),
+                (GetAllFormatData(), "format")
+            };
+            for (int i = 0; i < sources.Length; i++)
+            {
+                args += $":{sources[i].source}=";
+                foreach (BaseStreamData data in sources[i].streams)
+                {
+                    args += $"{data.key},";
+                }
+                args = args[..^1];
+            }
+            return args[1..^0];
+        }
         public IEnumerable<BaseStreamData> GetAllStreamData()
         {
             yield return StreamLength;
@@ -49,6 +78,7 @@ namespace FAIC.Types
         }
         public IEnumerable<BaseStreamData> GetAllFormatData()
         {
+            yield return Format;
             yield return FormatLength;
         }
         public IEnumerable<BaseStreamData> GetAllData()
@@ -86,12 +116,22 @@ namespace FAIC.Types
                     data.TryRead(format);
                 }
             }
+
+            //concat fps override
+            if (Format.Value.Equals("concat", StringComparison.CurrentCultureIgnoreCase))
+            {
+                OverridenFrameRate = FolderImporter.Result.TryFindFPS(inputPath);
+            }
         }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
             string fpsStatus = "unknown frame rate";
-            if (AverageFrameRate.ReadData || BaseFrameRate.ReadData)
+            if (OverridenFrameRate.HasValue)
+            {
+                fpsStatus = $"{OverridenFrameRate.Value} frame rate";
+            }
+            else if (AverageFrameRate.ReadData || BaseFrameRate.ReadData)
             {
                 string fpsSteadiness = "steadiness unknown";
                 if (AverageFrameRate.ReadData && BaseFrameRate.ReadData)
@@ -105,7 +145,7 @@ namespace FAIC.Types
                 fpsStatus = $"{EstimatedFrameRate} frame rate ({fpsSteadiness})";
             }
             
-            return $"({Length} seconds, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {Codec.Value} encoding)";
+            return $"({Length} seconds, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {Codec.Value} encoding in {Format.Value} format)";
         }
         public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
     }

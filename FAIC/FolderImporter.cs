@@ -24,6 +24,20 @@ namespace FAIC
                 }
                 return output;
             }
+            public static decimal? TryFindFPS(string path)
+            {
+                foreach (string line in File.ReadLines(path))
+                {
+                    if (line.StartsWith("#fps="))
+                    {
+                        if (decimal.TryParse(line[5..], out decimal fps))
+                        {
+                            return fps;
+                        }
+                    }
+                }
+                return null;
+            }
         }
         private string inputPath;
         private Task import;

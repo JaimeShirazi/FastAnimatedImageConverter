@@ -51,6 +51,7 @@ namespace FAIC
             timer.Start();
             isUnknown = settings.OutputFormat == ConvertJobTarget.WEBP;
 
+            //TODO: CONCAT FRAME DURATION & SPEED/FPS NOT WORKING CORRECTLY
             conversionTask = settings.OutputFormat switch
             {
                 ConvertJobTarget.AVIF => EncodeAVIF(settings, cancellationTokenSource.Token),

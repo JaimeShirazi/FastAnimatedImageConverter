@@ -463,7 +463,8 @@ namespace FAIC
                     },
                     Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value,
                     Transparent = transparentCheckbox.Checked,
-                    onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null
+                    onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null,
+                    overrideSafe = latestInfo.Format.Value.Equals("concat", StringComparison.CurrentCultureIgnoreCase)
                 };
 
                 ConversionWindow conversion = new ConversionWindow(settings);

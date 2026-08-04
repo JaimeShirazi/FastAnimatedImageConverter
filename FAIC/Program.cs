@@ -81,15 +81,24 @@ namespace FAIC
                 });
             }
 
+            ProbeMediaInfo mediaInfo = new(path);
+
+            string extension = Path.GetExtension(path);
+            //TODO: INVESTIGATE IF PROBING THE FORMAT FIRST DOESNT REQUIRE SAFE OVERRIDE
+            bool isConcat = (extension.Equals(".ffcat", StringComparison.CurrentCultureIgnoreCase)
+                || extension.Equals(".ffconcat", StringComparison.CurrentCultureIgnoreCase)
+                || extension.Equals(".txt", StringComparison.CurrentCultureIgnoreCase)
+                || extension.Equals("", StringComparison.CurrentCultureIgnoreCase));
+
             var proc = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     Arguments =
-                        $"-safe 0 " +
+                        (isConcat ? $"-safe 0 " : "") +
                         $"-v error " +
                         "-select_streams v:0 " +
-                        "-show_entries stream=codec_name,width,height,avg_frame_rate,r_frame_rate,duration:stream_tags=DURATION:format=duration " + //Duration is sometimes stored in stream_tags instead of stream
+                        $"-show_entries {mediaInfo.GetInputArguments()} " + //Duration is sometimes stored in stream_tags instead of stream
                         $"-of json \"{path}\""
                 }
             };
@@ -104,7 +113,6 @@ namespace FAIC
 
                 using var doc = JsonDocument.Parse(metaJson);
 
-                ProbeMediaInfo mediaInfo = new();
                 mediaInfo.ReadStream(doc.RootElement);
             
                 receiveInfoCallback(mediaInfo);
