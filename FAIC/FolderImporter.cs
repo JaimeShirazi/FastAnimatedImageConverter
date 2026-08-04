@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Resources;
 
 namespace FAIC
 {
@@ -11,6 +13,7 @@ namespace FAIC
             public string ToConcat()
             {
                 string output = "ffconcat version 1.0";
+                output += $"\n#fps={frameRate}";
                 decimal time = 0;
                 for (int i = 0; i < orderedFrames.Count; i++)
                 {
@@ -25,11 +28,13 @@ namespace FAIC
         private string inputPath;
         private Task import;
         private CancellationTokenSource cts;
-        public FolderImporter(string folderPath)
+        private Action<string> onCreatedConfig;
+        public FolderImporter(string folderPath, Action<string> onCreatedConfig)
         {
             InitializeComponent();
             inputPath = folderPath;
             cts = new();
+            this.onCreatedConfig = onCreatedConfig;
         }
 
         private void importButton_Click(object sender, EventArgs e)
@@ -37,8 +42,21 @@ namespace FAIC
             if (import != null) return;
             settings.Enabled = false;
             importButton.Enabled = false;
-            import = Import();
-            //TODO: Save the result to a txt file, output it inside the folder, and automatically set the file as the input path of the program.
+            import = Import((result) =>
+            {
+                string target = Path.Combine(inputPath, "index.ffconcat");
+                try
+                {
+                    File.WriteAllText(target, result.ToConcat());
+                    UpdateProgress(-1, $"Wrote ffconcat config to \"{target}\".");
+                    onCreatedConfig.Invoke(target);
+                    Close();
+                }
+                catch (Exception ex)
+                {
+                    UpdateProgress(-1, $"Failed to create config file.\n{ex.Message}");
+                }
+            });
         }
         private static readonly HashSet<string> extensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -48,21 +66,17 @@ namespace FAIC
             ".gif", ".apng",
             ".jxl"
         };
-        private async Task<Result> Import()
+        private async Task Import(Action<Result> onResult)
         {
             List<string> sortedPaths = await GetOrderedFrameFilesAsync(cts.Token);
-
+            
             if (!cts.IsCancellationRequested)
             {
-                return new Result()
+                onResult.Invoke(new Result()
                 {
                     orderedFrames = sortedPaths,
                     frameRate = fpsValue.Value
-                };
-            }
-            else
-            {
-                return new Result();
+                });
             }
         }
 
@@ -141,6 +155,11 @@ namespace FAIC
 
             if (total <= 0)
             {
+                if (current < 0)
+                {
+                    importLog.Text = detailedMessage;
+                    return;
+                }
                 importProgress.Style = ProgressBarStyle.Marquee;
                 importLog.Text = $"Found {current} files";
             }

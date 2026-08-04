@@ -86,6 +86,7 @@ namespace FAIC
                 StartInfo = new ProcessStartInfo
                 {
                     Arguments =
+                        $"-safe 0 " +
                         $"-v error " +
                         "-select_streams v:0 " +
                         "-show_entries stream=codec_name,width,height,avg_frame_rate,r_frame_rate,duration:stream_tags=DURATION:format=duration " + //Duration is sometimes stored in stream_tags instead of stream
@@ -114,7 +115,7 @@ namespace FAIC
             }
             catch (Exception e)
             {
-                TryOutput($"Unable to probe media: {e.Message}");
+                TryOutput(ConsoleMessageType.Error, $"Unable to probe media: {e.Message}");
                 receiveInfoCallback(null);
             }
         }

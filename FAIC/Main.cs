@@ -527,7 +527,7 @@ namespace FAIC
             FileAttributes attr = File.GetAttributes(files[0]);
             if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
             {
-                using (var importer = new FolderImporter(files[0]))
+                using (var importer = new FolderImporter(files[0], (input) => { InputPath = input; }))
                 {
                     importer.ShowDialog(this);
                 }

@@ -133,7 +133,7 @@
                 }
             }
 
-            return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 " +
+            return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 -safe 0 " +
                 $"-ss {Start} -to {End} " +
                 decoderOverride +
                 $"-i \"{InputPath}\" " +
