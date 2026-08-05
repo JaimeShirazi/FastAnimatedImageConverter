@@ -1,9 +1,11 @@
 ﻿using SharpGen.Runtime;
 using System.Drawing;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Vortice.MediaFoundation;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 namespace FAIC.Types.Forms
 {
@@ -12,7 +14,25 @@ namespace FAIC.Types.Forms
         public event Action<double> OnNewTime = (_) => { };
         public event Action OnStateChange = () => { };
         public event Action OnSupportChange = () => { };
+        public event Action<Rect> OnCropRectChanged = _ => { };
         public double Time => mode == PreviewMode.MediaPlayerPlaying ? player.Position.TotalSeconds : CachedTime;
+
+        /// <summary>
+        /// Selected crop in 0..1 coordinates relative to the visible source image.
+        /// The value is coerced to a square in UV space, which preserves the source
+        /// aspect ratio when converted back to display coordinates.
+        /// </summary>
+        public Rect NormalizedCropRect
+        {
+            get => cropOverlay.NormalizedSelection;
+            set => cropOverlay.NormalizedSelection = value;
+        }
+
+        public bool IsCropOverlayVisible
+        {
+            get => cropOverlay.IsVisible;
+            set => cropOverlay.IsVisible = value;
+        }
         public ProbeMediaInfo Latest => latest;
         private ProbeMediaInfo latest;
         private double CachedTime
@@ -48,6 +68,7 @@ namespace FAIC.Types.Forms
         MediaPlayer player = new();
         SourceReaderManager sourceReader = new();
         ImageSequenceManager? imageSequence;
+        private readonly AspectRatioCropOverlay cropOverlay = new();
 
         public bool CanReadMedia => MediaPlayerSupported || SourceReaderSupported || ImageSequenceSupported;
         private bool mediaPlayerSupported;
@@ -85,6 +106,8 @@ namespace FAIC.Types.Forms
             player.MediaOpened += OnMediaOpened;
 
             sourceReader.OnSupportChange += OnSourceReaderSupportChange;
+            cropOverlay.SelectionChanged += rect => OnCropRectChanged.Invoke(rect);
+            cropOverlay.VisualChanged += InvalidateVisual;
         }
         private void OnMediaOpened(object? sender, EventArgs e)
         {
@@ -143,6 +166,8 @@ namespace FAIC.Types.Forms
                     }
                     break;
             }
+
+            cropOverlay.Draw(dc, displayedSource);
         }
         private Rect GetOutputRect(double sourceWidth, double sourceHeight)
         {
@@ -204,6 +229,7 @@ namespace FAIC.Types.Forms
             CachedTime = 0;
             Mode = PreviewMode.None;
             readerFrame = null;
+            cropOverlay.NormalizedSelection = new Rect(0, 0, 1, 1);
 
             MediaPlayerSupported = false;
             player.Stop();
@@ -385,6 +411,37 @@ namespace FAIC.Types.Forms
                 }
                 sample.Dispose();
             }
+        }
+        protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+        {
+            base.OnMouseLeftButtonDown(e);
+            if (cropOverlay.HandleMouseDown(this, e.GetPosition(this)))
+            {
+                Focus();
+                e.Handled = true;
+            }
+        }
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            if (cropOverlay.HandleMouseMove(this, e.GetPosition(this)))
+                e.Handled = true;
+        }
+        protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+        {
+            base.OnMouseLeftButtonUp(e);
+            if (cropOverlay.HandleMouseUp(this, e.GetPosition(this)))
+                e.Handled = true;
+        }
+        protected override void OnMouseLeave(MouseEventArgs e)
+        {
+            base.OnMouseLeave(e);
+            cropOverlay.HandleMouseLeave(this);
+        }
+        protected override void OnLostMouseCapture(MouseEventArgs e)
+        {
+            base.OnLostMouseCapture(e);
+            cropOverlay.CancelDrag(this);
         }
         public async Task End()
         {
