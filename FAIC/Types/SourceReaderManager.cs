@@ -16,12 +16,14 @@ namespace FAIC.Types
         {
             public struct Metadata
             {
-                public int Width => HasAperture ? ApertureWidth : CodedWidth;
-                public int Height => HasAperture ? ApertureHeight : CodedHeight;
+                public int Width => Layout.IntegralVisiblePixels.Width;
+                public int Height => Layout.IntegralVisiblePixels.Height;
+                public VideoFrameLayout Layout;
                 public bool HasAperture;
                 public int CodedWidth, CodedHeight;
                 public int Stride;
-                public short OffsetX, OffsetXFrac, OffsetY, OffsetYFrac; //Not actually used - would require some changes to properly support
+                public short OffsetX, OffsetY;
+                public ushort OffsetXFrac, OffsetYFrac;
                 public int ApertureWidth, ApertureHeight;
                 public Metadata(IMFSourceReader reader)
                 {
@@ -43,22 +45,38 @@ namespace FAIC.Types
                         Stride = CodedWidth * 4;
                     }
 
-                    byte[] blob = new byte[16];
-                    if (newType.GetBlob(MediaTypeAttributeKeys.GeometricAperture, blob).Success)
-                    {
-                        HasAperture = true;
+                    HasAperture = false;
+                    OffsetX = 0;
+                    OffsetXFrac = 0;
+                    OffsetY = 0;
+                    OffsetYFrac = 0;
+                    ApertureWidth = CodedWidth;
+                    ApertureHeight = CodedHeight;
 
+                    byte[] blob = new byte[16];
+                    bool readAperture = newType.GetBlob(MediaTypeAttributeKeys.MinimumDisplayAperture, blob).Success
+                        || newType.GetBlob(MediaTypeAttributeKeys.GeometricAperture, blob).Success;
+                    if (readAperture)
+                    {
                         using var ms = new MemoryStream(blob);
                         using var br = new BinaryReader(ms);
 
                         OffsetX = br.ReadInt16();
-                        OffsetXFrac = br.ReadInt16();
+                        OffsetXFrac = br.ReadUInt16();
                         OffsetY = br.ReadInt16();
-                        OffsetYFrac = br.ReadInt16();
+                        OffsetYFrac = br.ReadUInt16();
 
                         ApertureWidth = br.ReadInt32();
                         ApertureHeight = br.ReadInt32();
                     }
+
+                    double apertureX = OffsetX + (OffsetXFrac / 65536.0);
+                    double apertureY = OffsetY + (OffsetYFrac / 65536.0);
+                    Layout = new VideoFrameLayout(
+                        CodedWidth,
+                        CodedHeight,
+                        new Rect(apertureX, apertureY, ApertureWidth, ApertureHeight));
+                    HasAperture = readAperture && Layout.HasPadding;
 
                     newType.Dispose();
                 }
@@ -106,6 +124,10 @@ namespace FAIC.Types
 
                 try
                 {
+                    Int32Rect visiblePixels = meta.Layout.IntegralVisiblePixels;
+                    if (visiblePixels.IsEmpty)
+                        return false;
+
                     if (sample.BufferCount == 1)
                     {
                         buffer = sample.GetBufferByIndex(0);
@@ -115,7 +137,7 @@ namespace FAIC.Types
                         {
                             buffer2D.Lock2D(out ptr, out pitch);
                             locked2D = true;
-                            length = pitch * meta.Height;
+                            length = Math.Abs(pitch) * meta.Height;
                         }
                     }
 
@@ -127,9 +149,15 @@ namespace FAIC.Types
                         pitch = meta.Stride;
                     }
 
+                    int sourceOffset = checked((visiblePixels.Y * pitch) + (visiblePixels.X * 4));
+                    nint visiblePointer = ptr + sourceOffset;
+                    int visibleLength = checked(
+                        (Math.Abs(pitch) * Math.Max(0, visiblePixels.Height - 1))
+                        + (visiblePixels.Width * 4));
+
                     if (readerFrame == null
-                        || readerFrame.PixelWidth != meta.Width
-                        || readerFrame.PixelHeight != meta.Height)
+                        || readerFrame.PixelWidth != visiblePixels.Width
+                        || readerFrame.PixelHeight != visiblePixels.Height)
                     {
                         readerFrame = new WriteableBitmap(
                             meta.Width,
@@ -142,7 +170,7 @@ namespace FAIC.Types
 
                     readerFrame.Lock();
                     readerFrameLocked = true;
-                    readerFrame.WritePixels(new Int32Rect(0, 0, meta.Width, meta.Height), ptr, length, pitch);
+                    readerFrame.WritePixels(new Int32Rect(0, 0, visiblePixels.Width, visiblePixels.Height), visiblePointer, Math.Min(length, visibleLength), pitch);
 
                     return true;
                 }
@@ -265,6 +293,7 @@ namespace FAIC.Types
         }
         public int LatestWidth => latestMetadata.Width;
         public int LatestHeight => latestMetadata.Height;
+        public VideoFrameLayout LatestFrameLayout => latestMetadata.Layout;
         private bool sourceReaderSupported;
         private double estimatedFrameRateCache;
         private long frameEpsilon;
@@ -274,6 +303,8 @@ namespace FAIC.Types
         {
             estimatedFrameRateCache = 0;
             frameEpsilon = 2000;
+            cachedSample.Dispose();
+            latestMetadata = default;
 
             SourceReaderSupported = true;
             if (reader != null)
@@ -294,6 +325,7 @@ namespace FAIC.Types
                 reader.SetCurrentMediaType(SourceReaderIndex.FirstVideoStream, outType);
                 latestMetadata = new(reader);
                 reader.SetCurrentPosition(0);
+                SourceReaderSupported = true;
             }
             catch
             {
@@ -307,8 +339,13 @@ namespace FAIC.Types
         }
         public void OnInformationFetch(ProbeMediaInfo info)
         {
-            estimatedFrameRateCache = info.EstimatedFrameRate;
-            frameEpsilon = (long)Math.Min((10_000_000.0 / info.EstimatedFrameRate) / 4.0, 500); //at longest, one frame at 20,000fps
+            if (info.EstimatedFrameRate > 0
+                && !double.IsNaN(info.EstimatedFrameRate)
+                && !double.IsInfinity(info.EstimatedFrameRate))
+            {
+                estimatedFrameRateCache = info.EstimatedFrameRate;
+                frameEpsilon = (long)Math.Min((10_000_000.0 / info.EstimatedFrameRate) / 4.0, 500); //at longest, one frame at 20,000fps
+            }
         }
         private double GetFramesBetween(StepResult to, StepResult from) => GetFramesBetween(to.timestamp, from.timestamp);
         private double GetFramesBetween(StepResult to, long from) => GetFramesBetween(to.timestamp, from);
@@ -514,7 +551,9 @@ namespace FAIC.Types
         public void Dispose()
         {
             reader?.Dispose();
+            reader = null;
             cachedSample.Dispose();
+            SourceReaderSupported = false;
         }
     }
 }

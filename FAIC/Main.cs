@@ -2,6 +2,7 @@ using FAIC.Types;
 using FAIC.Types.Forms;
 using System.IO;
 using System.Windows.Media;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
 using static Vortice.MediaFoundation.MediaFactory;
 
 namespace FAIC
@@ -117,8 +118,6 @@ namespace FAIC
                 resizeDimensionValue.Value = Math.Max(info.Width, info.Height);
             }
             resizeSlider.Value = 100;
-            playhead.Value = 0;
-            playhead.Maximum = (int)(1000 * info.Length);
 
             transparentCheckbox.Enabled = EncodeSettings.IsFormatTransparencySupported(info.Codec);
             if (!transparentCheckbox.Enabled) transparentCheckbox.Checked = false;
@@ -126,7 +125,12 @@ namespace FAIC
             #region Concat handling
             if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
             {
-                int maxLength = latestInfo.ConcatData.orderedFrames.Count;
+                playhead.Value = 0;
+                int maxLength = latestInfo.ConcatData.orderedFrames.Count - 1;
+                playhead.Maximum = maxLength;
+                playhead.TickFrequency = 1;
+                playhead.SmallChange = 1;
+                playhead.LargeChange = 10;
                 TimeNumericUpDown.IMode targetTrimMode = new TimeNumericUpDown.FramesMode(maxLength);
                 beginningInput.Current = targetTrimMode;
                 endInput.Current = targetTrimMode;
@@ -144,7 +148,12 @@ namespace FAIC
             }
             else
             {
+                playhead.Value = 0;
                 decimal maxLength = Math.Round((decimal)info.Length, 3);
+                playhead.Maximum = (int)(1000 * info.Length);
+                playhead.TickFrequency = 1000;
+                playhead.SmallChange = 1000;
+                playhead.LargeChange = 10000;
                 TimeNumericUpDown.IMode targetTrimMode = new TimeNumericUpDown.SecondsMode(maxLength);
                 beginningInput.Current = targetTrimMode;
                 endInput.Current = targetTrimMode;
@@ -168,13 +177,29 @@ namespace FAIC
         }
         private void VideoPreview_OnNewTime(double time)
         {
-            int target = (int)(time * 1000);
+            int target;
+            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            {
+                target = (int)Math.Round(time);
+            }
+            else
+            {
+                target = (int)(time * 1000);
+            }
             target = Math.Clamp(target, playhead.Minimum, playhead.Maximum);
             playhead.Value = target;
         }
         private void playhead_Scroll(object sender, EventArgs e)
         {
-            double t = playhead.Value / 1000.0;
+            double t;
+            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            {
+                t = playhead.Value;
+            }
+            else
+            {
+                t = playhead.Value / 1000.0;
+            }
             videoPreview.Seek(t);
         }
         #endregion
@@ -202,8 +227,9 @@ namespace FAIC
             mainSplit.Panel1Collapsed = !videoPreview.CanReadMedia;
             playhead.Enabled = videoPreview.CanReadMedia && !videoPreview.IsPlaying;
             playButton.Enabled = videoPreview.MediaPlayerSupported;
-            seekButton.Enabled = videoPreview.SourceReaderSupported;
-            reverseSeekButton.Enabled = videoPreview.SourceReaderSupported;
+            bool seekEnabled = videoPreview.SourceReaderSupported || videoPreview.ImageSequenceSupported;
+            seekButton.Enabled = seekEnabled;
+            reverseSeekButton.Enabled = seekEnabled;
             trimStartHereButton.Enabled = videoPreview.CanReadMedia;
             trimEndHereButton.Enabled = videoPreview.CanReadMedia;
             if (videoPreview.MediaPlayerSupported)
@@ -221,7 +247,7 @@ namespace FAIC
             {
                 playButton.Text = "Play/Pause Unsupported";
             }
-            if (videoPreview.SourceReaderSupported)
+            if (seekEnabled)
             {
                 seekButton.Text = "Next Frame";
                 reverseSeekButton.Text = "Previous Frame";
@@ -244,8 +270,7 @@ namespace FAIC
         {
             if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
             {
-                //TODO
-                MessageBox.Show("Support not yet implemented");
+                beginningInput.Value = (int)Math.Round(videoPreview.Time);
             }
             else
             {
@@ -256,8 +281,7 @@ namespace FAIC
         {
             if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
             {
-                //TODO
-                MessageBox.Show("Support not yet implemented");
+                endInput.Value = (int)Math.Round(videoPreview.Time);
             }
             else
             {
