@@ -149,6 +149,9 @@ Type anything other than a whole number between 0 and 65535 or decrement below 0
     <value>Go to the next frame in the media.
 Warning: this function will likely freeze for a bit while the program tries to catch up. Every subsequent click should be faster, but it will reset when you scrub the timeline or start playback.</value>
   </data>
+  <metadata name="saveConcatDialogue.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>780, 17</value>
+  </metadata>
   <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
   <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>

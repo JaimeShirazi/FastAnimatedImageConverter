@@ -87,6 +87,10 @@ namespace FAIC.Types
                 }
             }
         }
+        public void ReadStream(FrameCollection collection)
+        {
+
+        }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {

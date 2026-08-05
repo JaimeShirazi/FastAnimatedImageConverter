@@ -40,6 +40,7 @@
             spacer1 = new Panel();
             importProgress = new ProgressBar();
             importLog = new RichTextBox();
+            saveConcatDialogue = new SaveFileDialog();
             verticalLayout.SuspendLayout();
             settings.SuspendLayout();
             fpsValueContainer.SuspendLayout();
@@ -181,6 +182,11 @@
             importLog.TabIndex = 7;
             importLog.Text = "";
             // 
+            // saveConcatDialogue
+            // 
+            saveConcatDialogue.DefaultExt = "txt";
+            saveConcatDialogue.Filter = "Virtual concatenation script|*.txt|All files|*.*";
+            // 
             // FolderImporter
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -191,7 +197,7 @@
             MinimumSize = new Size(256, 128);
             Name = "FolderImporter";
             StartPosition = FormStartPosition.CenterParent;
-            Text = "Import Folder";
+            Text = "Import Multiple";
             verticalLayout.ResumeLayout(false);
             verticalLayout.PerformLayout();
             settings.ResumeLayout(false);
@@ -215,5 +221,6 @@
         private Panel spacer1;
         private Label subfoldersLabel;
         private CheckBox subfoldersCheckbox;
+        private SaveFileDialog saveConcatDialogue;
     }
 }

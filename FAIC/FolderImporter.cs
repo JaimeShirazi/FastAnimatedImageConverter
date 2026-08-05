@@ -1,44 +1,50 @@
-﻿using System.IO;
+﻿using FAIC.Types;
+using System.Globalization;
+using System.IO;
+using System.Text;
 
 namespace FAIC
 {
     public partial class FolderImporter : Form
     {
-        public struct Result
-        {
-            public List<string> orderedFrames;
-            public decimal frameRate;
-            public string ToConcat()
-            {
-                string output = "ffconcat version 1.0";
-                decimal time = 0;
-                for (int i = 0; i < orderedFrames.Count; i++)
-                {
-                    output += $"\nfile \'{orderedFrames[i]}\'";
-                    decimal nextTime = i / frameRate;
-                    output += $"\nduration {nextTime - time}";
-                    time = nextTime;
-                }
-                return output;
-            }
-        }
-        private string inputPath;
+        private string[] inputPaths;
         private Task import;
         private CancellationTokenSource cts;
-        public FolderImporter(string folderPath)
+        private Action<string> onCreated;
+        public FolderImporter(string[] filesAndFolderPaths, Action<string> onConcatCreated)
         {
             InitializeComponent();
-            inputPath = folderPath;
+            inputPaths = filesAndFolderPaths;
             cts = new();
+            onCreated = onConcatCreated;
         }
 
         private void importButton_Click(object sender, EventArgs e)
         {
             if (import != null) return;
-            settings.Enabled = false;
-            importButton.Enabled = false;
-            import = Import();
-            //TODO: Save the result to a txt file, output it inside the folder, and automatically set the file as the input path of the program.
+
+            if (fpsValue.Value <= 0)
+            {
+                MessageBox.Show("Cannot use an FPS value less than or equal to 0.", "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            saveConcatDialogue.InitialDirectory = Path.GetDirectoryName(inputPaths[0]);
+            int counter;
+            string filePrefix = Path.Combine(Path.GetDirectoryName(inputPaths[0]), "ImportedFileList_");
+            for (counter = 1; counter < 99999; counter++)
+            {
+                if (!File.Exists(filePrefix + counter + ".txt")) break;
+            }
+            saveConcatDialogue.FileName = filePrefix + counter;
+            if (saveConcatDialogue.ShowDialog(this) == DialogResult.OK)
+            {
+                settings.Enabled = false;
+                importButton.Enabled = false;
+                import = Import(saveConcatDialogue.FileName);
+            }
+
+            
         }
         private static readonly HashSet<string> extensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -48,40 +54,74 @@ namespace FAIC
             ".gif", ".apng",
             ".jxl"
         };
-        private async Task<Result> Import()
+        private async Task Import(string outputPath)
         {
             List<string> sortedPaths = await GetOrderedFrameFilesAsync(cts.Token);
 
             if (!cts.IsCancellationRequested)
             {
-                return new Result()
+                Program.TryOutput(ConsoleMessageType.Success, "Finished building file list.");
+                Program.TryOutput(ConsoleMessageType.Progress, "Writing list to file...");
+
+                FrameCollection result = new FrameCollection()
                 {
-                    orderedFrames = sortedPaths,
-                    frameRate = fpsValue.Value
+                    stream = sortedPaths,
+                    averageFrameRate = fpsValue.Value
                 };
-            }
-            else
-            {
-                return new Result();
+
+                await Task.Run(() =>
+                {
+                    var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
+                    using (var stream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.Read))
+                    {
+                        using (var writer = new StreamWriter(stream, encoding))
+                        {
+                            result.ToConcat(writer);
+                        }
+                    }
+                });
+
+                Program.TryOutput(ConsoleMessageType.Success, "Finished writing list to file!");
+                onCreated.Invoke(outputPath);
             }
         }
 
         public async Task<List<string>> GetOrderedFrameFilesAsync(CancellationToken token)
         {
-            if (string.IsNullOrWhiteSpace(inputPath)
-                || !Directory.Exists(inputPath))
-            {
-                MessageBox.Show("Root directory is empty or does not exisdt.", "Error importing folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return null;
-            }
-
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 // Pass 1: count eligible files for a determinate progress bar.
-                int total = CountCandidateFiles(
-                    inputPath,
-                    subfoldersCheckbox.Checked,
-                    token);
+                int total = 0;
+                List<int> totals = new();
+                for (int i = 0; i < inputPaths.Length; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(inputPaths[i])
+                    || !Path.Exists(inputPaths[i]))
+                    {
+                        MessageBox.Show($"File or directory \'{inputPaths[i]}\' is empty or does not exist.", "Error importing folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return null;
+                    }
+
+                    FileAttributes attr = File.GetAttributes(inputPaths[i]);
+                    if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+                    {
+                        totals.Add(CountCandidateFiles(
+                            inputPaths[i],
+                            subfoldersCheckbox.Checked,
+                            token));
+                        total += totals[^1];
+
+                    }
+                    else
+                    {
+                        if (extensions.Contains(Path.GetExtension(inputPaths[i])))
+                        {
+                            totals.Add(1);
+                            total++;
+                        }
+                    }
+                }
 
                 token.ThrowIfCancellationRequested();
 
@@ -89,20 +129,47 @@ namespace FAIC
                 var results = new List<string>(capacity: Math.Max(total, 4));
                 int processed = 0;
 
-                foreach (string path in EnumerateCandidateFiles(
-                    inputPath,
-                    subfoldersCheckbox.Checked,
-                    token))
+                for (int i = 0; i < inputPaths.Length; i++)
                 {
-                    token.ThrowIfCancellationRequested();
+                    FileAttributes attr = File.GetAttributes(inputPaths[i]);
+                    if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+                    {
+                        int start = processed;
+                        int refreshCount = 0;
+                        foreach (string path in EnumerateCandidateFiles(
+                            inputPaths[i],
+                            subfoldersCheckbox.Checked,
+                            token))
+                        {
+                            token.ThrowIfCancellationRequested();
 
-                    results.Add(path);
-                    processed++;
+                            results.Add(path);
+                            processed++;
+                            refreshCount++;
 
-                    UpdateProgress(processed, path, total);
+                            if (refreshCount > 256) //Only update every 256 files
+                            {
+                                UpdateProgress(processed, path, total);
+                                refreshCount = 0;
+                            }
+                        }
+
+                        UpdateProgress(total, $"Sorting input #{i}'s valid files...");
+                        Program.TryOutput($"Sorting {processed - start} at offset {start}");
+                        results.Sort(start, processed - start, StringComparer.OrdinalIgnoreCase);
+                    }
+                    else
+                    {
+                        if (extensions.Contains(Path.GetExtension(inputPaths[i])))
+                        {
+                            results.Add(inputPaths[i]);
+                            processed++;
+                        }
+                    }
                 }
-                UpdateProgress(total, $"Sorting {results.Count} valid files...");
-                results.Sort(StringComparer.OrdinalIgnoreCase);
+
+                Thread.Sleep(1000);
+
                 return results;
             }, token);
         }

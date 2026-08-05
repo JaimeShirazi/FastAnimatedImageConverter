@@ -1,4 +1,6 @@
-﻿namespace FAIC.Types
+﻿using System.IO;
+
+namespace FAIC.Types
 {
     public struct EncodeSettings
     {
@@ -132,8 +134,15 @@
                         break;
                 }
             }
+            string safeOverride = "";
+            if (Path.GetExtension(InputPath).Trim().ToLower() == "txt")
+            {
+                decoderOverride = "-f concat ";
+                safeOverride = "-safe 0 ";
+            }
 
             return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 " +
+                safeOverride +
                 $"-ss {Start} -to {End} " +
                 decoderOverride +
                 $"-i \"{InputPath}\" " +

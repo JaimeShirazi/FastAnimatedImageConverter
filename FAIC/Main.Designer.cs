@@ -94,6 +94,7 @@ namespace FAIC
             actionsPanel = new Panel();
             tooltips = new ToolTip(components);
             masterLayout = new TableLayoutPanel();
+            saveConcatDialogue = new SaveFileDialog();
             ((System.ComponentModel.ISupportInitialize)qualitySlider).BeginInit();
             ((System.ComponentModel.ISupportInitialize)settingsBindingSource).BeginInit();
             settingsGroupBox.SuspendLayout();
@@ -1028,6 +1029,11 @@ namespace FAIC
             masterLayout.Size = new Size(784, 561);
             masterLayout.TabIndex = 2;
             // 
+            // saveConcatDialogue
+            // 
+            saveConcatDialogue.DefaultExt = "txt";
+            saveConcatDialogue.Filter = "Virtual concatenation script|*.txt|All files|*.*";
+            // 
             // Main
             // 
             AllowDrop = true;
@@ -1155,5 +1161,6 @@ namespace FAIC
         private Label fpsLabel;
         private Label fpsModeLabel;
         private TableLayoutPanel masterLayout;
+        private SaveFileDialog saveConcatDialogue;
     }
 }
