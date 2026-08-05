@@ -50,10 +50,10 @@ namespace FAIC
             trimLabel = new Label();
             firstFrame = new Label();
             firstFrameContainer = new Panel();
-            firstFrameInput = new NumericUpDown();
+            beginningInput = new FAIC.Types.Forms.TimeNumericUpDown();
             lastFrameLabel = new Label();
             lastFrameContainer = new Panel();
-            lastFrameInput = new NumericUpDown();
+            endInput = new FAIC.Types.Forms.TimeNumericUpDown();
             settingsDivider2 = new Panel();
             speedLabel = new Label();
             speedSlider = new TrackBar();
@@ -103,9 +103,9 @@ namespace FAIC
             ((System.ComponentModel.ISupportInitialize)resizeDimensionValue).BeginInit();
             trimColumnLayoutPanel.SuspendLayout();
             firstFrameContainer.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)firstFrameInput).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)beginningInput).BeginInit();
             lastFrameContainer.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)lastFrameInput).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)endInput).BeginInit();
             ((System.ComponentModel.ISupportInitialize)speedSlider).BeginInit();
             fpsColumnLayoutPanel.SuspendLayout();
             fpsContainer.SuspendLayout();
@@ -402,26 +402,26 @@ namespace FAIC
             // 
             firstFrameContainer.AutoSize = true;
             firstFrameContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            firstFrameContainer.Controls.Add(firstFrameInput);
+            firstFrameContainer.Controls.Add(beginningInput);
             firstFrameContainer.Dock = DockStyle.Fill;
             firstFrameContainer.Location = new Point(101, 88);
             firstFrameContainer.Name = "firstFrameContainer";
             firstFrameContainer.Size = new Size(216, 23);
             firstFrameContainer.TabIndex = 8;
             // 
-            // firstFrameInput
+            // beginningInput
             // 
-            firstFrameInput.AccessibleName = "Trim start of the video to X seconds input";
-            firstFrameInput.AutoSize = true;
-            firstFrameInput.DecimalPlaces = 3;
-            firstFrameInput.Dock = DockStyle.Fill;
-            firstFrameInput.Location = new Point(0, 0);
-            firstFrameInput.Margin = new Padding(2);
-            firstFrameInput.Name = "firstFrameInput";
-            firstFrameInput.Size = new Size(216, 23);
-            firstFrameInput.TabIndex = 0;
-            tooltips.SetToolTip(firstFrameInput, "Where to start the converted output relative to the source media in seconds.\r\n\r\n");
-            firstFrameInput.ValueChanged += firstFrameInput_ValueChanged;
+            beginningInput.AccessibleName = "Trim start of the video input";
+            beginningInput.AutoSize = true;
+            beginningInput.DecimalPlaces = 3;
+            beginningInput.Dock = DockStyle.Fill;
+            beginningInput.Location = new Point(0, 0);
+            beginningInput.Margin = new Padding(2);
+            beginningInput.Maximum = new decimal(new int[] { 0, 0, 0, 0 });
+            beginningInput.Name = "beginningInput";
+            beginningInput.Size = new Size(216, 23);
+            beginningInput.TabIndex = 0;
+            tooltips.SetToolTip(beginningInput, "Where to start the converted output relative to the source media.");
             // 
             // lastFrameLabel
             // 
@@ -440,25 +440,26 @@ namespace FAIC
             // 
             lastFrameContainer.AutoSize = true;
             lastFrameContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            lastFrameContainer.Controls.Add(lastFrameInput);
+            lastFrameContainer.Controls.Add(endInput);
             lastFrameContainer.Dock = DockStyle.Fill;
             lastFrameContainer.Location = new Point(101, 117);
             lastFrameContainer.Name = "lastFrameContainer";
             lastFrameContainer.Size = new Size(216, 23);
             lastFrameContainer.TabIndex = 10;
             // 
-            // lastFrameInput
+            // endInput
             // 
-            lastFrameInput.AccessibleName = "Trim end of the video to X seconds input";
-            lastFrameInput.AutoSize = true;
-            lastFrameInput.DecimalPlaces = 3;
-            lastFrameInput.Dock = DockStyle.Fill;
-            lastFrameInput.Location = new Point(0, 0);
-            lastFrameInput.Margin = new Padding(2);
-            lastFrameInput.Name = "lastFrameInput";
-            lastFrameInput.Size = new Size(216, 23);
-            lastFrameInput.TabIndex = 0;
-            tooltips.SetToolTip(lastFrameInput, "Where to end the converted output relative to the source media in seconds.\r\n");
+            endInput.AccessibleName = "Trim end of the video input";
+            endInput.AutoSize = true;
+            endInput.DecimalPlaces = 3;
+            endInput.Dock = DockStyle.Fill;
+            endInput.Location = new Point(0, 0);
+            endInput.Margin = new Padding(2);
+            endInput.Maximum = new decimal(new int[] { 0, 0, 0, 0 });
+            endInput.Name = "endInput";
+            endInput.Size = new Size(216, 23);
+            endInput.TabIndex = 0;
+            tooltips.SetToolTip(endInput, "Where to end the converted output relative to the source media.");
             // 
             // settingsDivider2
             // 
@@ -1055,10 +1056,10 @@ namespace FAIC
             trimColumnLayoutPanel.PerformLayout();
             firstFrameContainer.ResumeLayout(false);
             firstFrameContainer.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)firstFrameInput).EndInit();
+            ((System.ComponentModel.ISupportInitialize)beginningInput).EndInit();
             lastFrameContainer.ResumeLayout(false);
             lastFrameContainer.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)lastFrameInput).EndInit();
+            ((System.ComponentModel.ISupportInitialize)endInput).EndInit();
             ((System.ComponentModel.ISupportInitialize)speedSlider).EndInit();
             fpsColumnLayoutPanel.ResumeLayout(false);
             fpsColumnLayoutPanel.PerformLayout();
@@ -1104,7 +1105,6 @@ namespace FAIC
         private Panel actionsPanel;
         private TrackBar playhead;
         private ElementHost videoPreviewHost;
-        private NumericUpDown firstFrameInput;
         private Button trimStartHereButton;
         private Button trimEndHereButton;
         private Label trimLabel;
@@ -1125,7 +1125,6 @@ namespace FAIC
         private TrackBar speedSlider;
         private Label speedLabel;
         private Label lastFrameLabel;
-        private NumericUpDown lastFrameInput;
         private Label firstFrame;
         private TableLayoutPanel trimColumnLayoutPanel;
         private Label processingModeLabel;
@@ -1155,5 +1154,7 @@ namespace FAIC
         private Label fpsLabel;
         private Label fpsModeLabel;
         private TableLayoutPanel masterLayout;
+        private Types.Forms.TimeNumericUpDown beginningInput;
+        private Types.Forms.TimeNumericUpDown endInput;
     }
 }

@@ -119,9 +119,6 @@ namespace FAIC
             resizeSlider.Value = 100;
             playhead.Value = 0;
             playhead.Maximum = (int)(1000 * info.Length);
-            lastFrameInput.Maximum = Math.Round((decimal)info.Length, 3);
-            firstFrameInput.Maximum = lastFrameInput.Maximum;
-            lastFrameInput.Value = lastFrameInput.Maximum;
 
             transparentCheckbox.Enabled = EncodeSettings.IsFormatTransparencySupported(info.Codec);
             if (!transparentCheckbox.Enabled) transparentCheckbox.Checked = false;
@@ -129,6 +126,11 @@ namespace FAIC
             #region Concat handling
             if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
             {
+                int maxLength = latestInfo.ConcatData.orderedFrames.Count;
+                TimeNumericUpDown.IMode targetTrimMode = new TimeNumericUpDown.FramesMode(maxLength);
+                beginningInput.Current = targetTrimMode;
+                endInput.Current = targetTrimMode;
+                endInput.Value = maxLength;
                 fpsSetting.Items.Clear();
                 fpsSetting.Items.Add("Custom");
                 fpsSetting.SelectedIndex = 0;
@@ -142,6 +144,11 @@ namespace FAIC
             }
             else
             {
+                decimal maxLength = Math.Round((decimal)info.Length, 3);
+                TimeNumericUpDown.IMode targetTrimMode = new TimeNumericUpDown.SecondsMode(maxLength);
+                beginningInput.Current = targetTrimMode;
+                endInput.Current = targetTrimMode;
+                endInput.Value = maxLength;
                 fpsSetting.Items.Clear();
                 fpsSetting.Items.Add("Same");
                 fpsSetting.Items.Add("Nearest");
@@ -155,6 +162,7 @@ namespace FAIC
                 speedSlider.Enabled = true;
             }
             #endregion
+            beginningInput.Value = 0;
 
             repeatValue.Value = -1;
         }
@@ -234,11 +242,27 @@ namespace FAIC
         }
         private void trimStartHereButton_Click(object sender, EventArgs e)
         {
-            firstFrameInput.Value = Math.Round((decimal)videoPreview.Time, 3);
+            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            {
+                //TODO
+                MessageBox.Show("Support not yet implemented");
+            }
+            else
+            {
+                beginningInput.Value = Math.Round((decimal)videoPreview.Time, 3);
+            }
         }
         private void trimEndHereButton_Click(object sender, EventArgs e)
         {
-            lastFrameInput.Value = Math.Round((decimal)videoPreview.Time, 3);
+            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            {
+                //TODO
+                MessageBox.Show("Support not yet implemented");
+            }
+            else
+            {
+                endInput.Value = Math.Round((decimal)videoPreview.Time, 3);
+            }
         }
         #endregion
         #region Settings and console panel
@@ -405,12 +429,12 @@ namespace FAIC
                 MessageBox.Show($"Input file path was null or empty.", "Encode Failed");
             }
 
-            if (firstFrameInput.Value > lastFrameInput.Value)
+            if (beginningInput.Value > endInput.Value)
             {
                 Program.TryOutput(ConsoleMessageType.Warning, "End time is before start time, swapping values.");
-                decimal lastFrameTimeCurrent = lastFrameInput.Value;
-                lastFrameInput.Value = firstFrameInput.Value;
-                firstFrameInput.Value = lastFrameTimeCurrent;
+                decimal lastFrameTimeCurrent = endInput.Value;
+                endInput.Value = beginningInput.Value;
+                beginningInput.Value = lastFrameTimeCurrent;
             }
             saveFileDialogue.InitialDirectory = Path.GetDirectoryName(inputPath);
             saveFileDialogue.FileName = Path.GetFileNameWithoutExtension(inputPath) + "_Converted";
@@ -466,6 +490,18 @@ namespace FAIC
                 int width = widthLarger ? (int)resizeDimensionValue.Value : smallestDimension;
                 int height = widthLarger ? smallestDimension : (int)resizeDimensionValue.Value;
 
+                decimal start = 0, end = 0;
+                if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+                {
+                    //TODO
+                    MessageBox.Show("Support not yet implemented");
+                }
+                else
+                {
+                    start = beginningInput.Value;
+                    end = endInput.Value;
+                }
+
                 EncodeSettings settings = new EncodeSettings((int)resizeDimensionValue.Value, GetMediaLargestDimension(), processingFastRadio.Checked, processingBestRadio.Checked)
                 {
                     InputPath = inputPath,
@@ -481,8 +517,8 @@ namespace FAIC
                         _ => throw new System.NotImplementedException($"Unrecognised target extension \"{extension}\"")
                     },
                     Quality = qualitySlider.Value,
-                    Start = firstFrameInput.Value,
-                    End = lastFrameInput.Value,
+                    Start = start,
+                    End = end,
                     Width = width,
                     Height = height,
                     Speed = Speeds[speedSlider.Value],
@@ -597,6 +633,7 @@ namespace FAIC
 
             MFShutdown().CheckError();
         }
+
         #endregion
     }
 }

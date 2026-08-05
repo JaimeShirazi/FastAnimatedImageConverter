@@ -145,6 +145,7 @@
             ClientSize = new Size(384, 175);
             Controls.Add(verticalLayout);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            MaximizeBox = false;
             MinimumSize = new Size(400, 128);
             Name = "FolderImporter";
             StartPosition = FormStartPosition.CenterParent;
