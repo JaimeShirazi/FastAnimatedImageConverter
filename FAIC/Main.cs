@@ -15,7 +15,7 @@ namespace FAIC
             {
                 if (string.IsNullOrEmpty(value)) return;
 
-                Program.TryOutput(ConsoleMessageType.System, $"Set input file to file at path \"{InputPath}\"");
+                Program.TryOutput(ConsoleMessageType.System, $"Opening file at \"{value}\"");
 
                 if (Path.Exists(value))
                 {
@@ -602,10 +602,8 @@ namespace FAIC
                     importer.ShowDialog(this);
                 }
             }
-            //TODO: instead of else, use the importer as an intercept to getting a txt file instead.
             else
             {
-                Program.TryOutput(ConsoleMessageType.System, $"Set input file to file at path \"{InputPath}\"");
                 InputPath = files[0];
             }
         }
