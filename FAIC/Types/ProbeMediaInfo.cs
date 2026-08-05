@@ -26,22 +26,22 @@ namespace FAIC.Types
         /// Best-guess FPS for this media. Negative when no valid FPS was found.
         /// </summary>
         public double EstimatedFrameRate =>
-            OverridenFrameRate.HasValue ?
-            (double)OverridenFrameRate.Value
-            :   AverageFrameRate.ReadData && !AverageFrameRate.Value.IsInvalid
-                ? (double)AverageFrameRate.Value
-                : (!BaseFrameRate.Value.IsInvalid ? (double)BaseFrameRate.Value : -1);
+            AverageFrameRate.ReadData && !AverageFrameRate.Value.IsInvalid
+            ? (double)AverageFrameRate.Value
+            : (!BaseFrameRate.Value.IsInvalid ? (double)BaseFrameRate.Value : -1);
 
         public ParsedStreamData<double> StreamLength = new(key: "duration");
         public ParsedStreamData<double> FormatLength = new(key: "duration");
         public ParsedStreamData<Fraction> AverageFrameRate = new(key: "avg_frame_rate");
         public ParsedStreamData<Fraction> BaseFrameRate = new(key: "r_frame_rate");
-        public decimal? OverridenFrameRate = null;
         public ParsedStreamData<int> Width = new(key: "width");
         public ParsedStreamData<int> Height = new(key: "height");
         public StringStreamData Codec = new(key: "codec_name");
         public StringStreamData Format = new(key: "format_name");
         public ParsedStreamData<FormattedDuration> StreamTagLength = new(key: "DURATION");
+
+        public FolderImporter.Result ConcatData => concatData;
+        private FolderImporter.Result concatData;
 
         public string GetInputArguments()
         {
@@ -117,35 +117,43 @@ namespace FAIC.Types
                 }
             }
 
-            //concat fps override
-            if (Format.Value.Equals("concat", StringComparison.CurrentCultureIgnoreCase))
+            if (Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
             {
-                OverridenFrameRate = FolderImporter.Result.TryFindFPS(inputPath);
+                if (!FolderImporter.Result.TryReadFrom(inputPath, out concatData))
+                {
+                    Format.Value = "unknown";
+                }
             }
         }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
+            string lengthStatus = "unknown length";
             string fpsStatus = "unknown frame rate";
-            if (OverridenFrameRate.HasValue)
+            if (Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
             {
-                fpsStatus = $"{OverridenFrameRate.Value} frame rate";
+                lengthStatus = $"{concatData.orderedFrames.Count} frames";
+                fpsStatus = "unspecified frame rate";
             }
-            else if (AverageFrameRate.ReadData || BaseFrameRate.ReadData)
+            else
             {
-                string fpsSteadiness = "steadiness unknown";
-                if (AverageFrameRate.ReadData && BaseFrameRate.ReadData)
+                lengthStatus = $"{Length} seconds";
+                if (AverageFrameRate.ReadData || BaseFrameRate.ReadData)
                 {
-                    string steadiness = Fraction.IsSteady(AverageFrameRate.Value, BaseFrameRate.Value) ? "steady" : "unsteady";
-                    if (!AverageFrameRate.Value.IsInvalid && !BaseFrameRate.Value.IsInvalid)
+                    string fpsSteadiness = "steadiness unknown";
+                    if (AverageFrameRate.ReadData && BaseFrameRate.ReadData)
                     {
-                        fpsSteadiness = Fraction.IsSteady(AverageFrameRate.Value, BaseFrameRate.Value) ? "steady" : "unsteady";
+                        string steadiness = Fraction.IsSteady(AverageFrameRate.Value, BaseFrameRate.Value) ? "steady" : "unsteady";
+                        if (!AverageFrameRate.Value.IsInvalid && !BaseFrameRate.Value.IsInvalid)
+                        {
+                            fpsSteadiness = Fraction.IsSteady(AverageFrameRate.Value, BaseFrameRate.Value) ? "steady" : "unsteady";
+                        }
                     }
+                    fpsStatus = $"{EstimatedFrameRate} frame rate ({fpsSteadiness})";
                 }
-                fpsStatus = $"{EstimatedFrameRate} frame rate ({fpsSteadiness})";
             }
             
-            return $"({Length} seconds, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {Codec.Value} encoding in {Format.Value} format)";
+            return $"({lengthStatus}, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {Codec.Value} encoding in {Format.Value} format)";
         }
         public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
     }

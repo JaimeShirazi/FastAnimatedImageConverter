@@ -84,11 +84,9 @@ namespace FAIC
             ProbeMediaInfo mediaInfo = new(path);
 
             string extension = Path.GetExtension(path);
-            //TODO: INVESTIGATE IF PROBING THE FORMAT FIRST DOESNT REQUIRE SAFE OVERRIDE
             bool isConcat = (extension.Equals(".ffcat", StringComparison.CurrentCultureIgnoreCase)
                 || extension.Equals(".ffconcat", StringComparison.CurrentCultureIgnoreCase)
-                || extension.Equals(".txt", StringComparison.CurrentCultureIgnoreCase)
-                || extension.Equals("", StringComparison.CurrentCultureIgnoreCase));
+                || extension.Equals(".txt", StringComparison.CurrentCultureIgnoreCase));
 
             var proc = new Process
             {

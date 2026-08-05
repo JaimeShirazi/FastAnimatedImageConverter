@@ -32,7 +32,7 @@
         public int Repeats;
         public bool Transparent;
         public Func<ArgumentsWindowInputs, ArgumentsWindowOutputs> onBeforeArguments;
-        public bool overrideSafe;
+        public bool isConcat;
         public EncodeSettings(int largestTargetDimension, int largestOriginalDimension, bool preferFast, bool preferBest)
         {
             if (preferFast)
@@ -134,7 +134,12 @@
                 }
             }
 
-            string safeOverride = overrideSafe ? "-safe 0 " : "";
+            string safeOverride = "";
+            if (isConcat)
+            {
+                decoderOverride = "-f concat ";
+                safeOverride = "-safe 0 ";
+            }
 
             return "-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 " +
                 safeOverride +

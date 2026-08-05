@@ -1,6 +1,10 @@
-﻿using System.Diagnostics;
+﻿using SharpGen.Runtime.Win32;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Resources;
+using System.Text;
+using System.Windows.Documents;
 
 namespace FAIC
 {
@@ -9,68 +13,82 @@ namespace FAIC
         public struct Result
         {
             public List<string> orderedFrames;
-            public decimal frameRate;
-            public string ToConcat()
+            public readonly IEnumerable<string> ToConcat()
             {
-                string output = "ffconcat version 1.0";
-                output += $"\n#fps={frameRate}";
-                decimal time = 0;
+                yield return "ffconcat version 1.0";
+                yield return "#Generated with Fast Animated Image Converter";
+                yield return "#https://github.com/JaimeShirazi/FastAnimatedImageConverter";
                 for (int i = 0; i < orderedFrames.Count; i++)
                 {
-                    output += $"\nfile \'{orderedFrames[i]}\'";
-                    decimal nextTime = i / frameRate;
-                    output += $"\nduration {nextTime - time}";
-                    time = nextTime;
+                    yield return $"file \'{orderedFrames[i]}\'";
                 }
-                return output;
             }
-            public static decimal? TryFindFPS(string path)
+            public static bool TryReadFrom(string concatPath, out Result result)
             {
-                foreach (string line in File.ReadLines(path))
+                result = default;
+
+                if (!Path.Exists(concatPath)) return false;
+
+                result.orderedFrames = new List<string>();
+
+                using (StreamReader sr = new StreamReader(concatPath))
                 {
-                    if (line.StartsWith("#fps="))
+                    if (!sr.ReadLine().Equals("ffconcat version 1.0")) return false;
+
+                    while (!sr.EndOfStream)
                     {
-                        if (decimal.TryParse(line[5..], out decimal fps))
+                        var s = sr.ReadLine();
+                        if (string.IsNullOrEmpty(s)) continue;
+
+                        if (s.StartsWith("file "))
                         {
-                            return fps;
+                            string path = s[5..].Trim('\'');
+                            if (!File.Exists(path))
+                            {
+                                path = Path.Combine(Path.GetDirectoryName(concatPath), path);
+                            }
+
+                            if (File.Exists(path))
+                            {
+                                result.orderedFrames.Add(path);
+                            }
                         }
                     }
                 }
-                return null;
+
+
+                return true;
             }
         }
         private string inputPath;
         private Task import;
         private CancellationTokenSource cts;
-        private Action<string> onCreatedConfig;
-        public FolderImporter(string folderPath, Action<string> onCreatedConfig)
+        private Action<string> onCreated;
+        public FolderImporter(string folderPath, Action<string> onConcatCreated)
         {
             InitializeComponent();
             inputPath = folderPath;
             cts = new();
-            this.onCreatedConfig = onCreatedConfig;
+            onCreated = onConcatCreated;
         }
 
         private void importButton_Click(object sender, EventArgs e)
         {
             if (import != null) return;
-            settings.Enabled = false;
-            importButton.Enabled = false;
-            import = Import((result) =>
+
+            saveConcat.InitialDirectory = Directory.Exists(inputPath) ? inputPath : Path.GetDirectoryName(inputPath);
+            saveConcat.FileName = "index.ffcat";
+            if (saveConcat.ShowDialog(this) == DialogResult.OK)
             {
-                string target = Path.Combine(inputPath, "index.ffconcat");
-                try
+                settings.Enabled = false;
+                importButton.Enabled = false;
+                import = Import(saveConcat.FileName, () =>
                 {
-                    File.WriteAllText(target, result.ToConcat());
-                    UpdateProgress(-1, $"Wrote ffconcat config to \"{target}\".");
-                    onCreatedConfig.Invoke(target);
+                    onCreated.Invoke(saveConcat.FileName);
                     Close();
-                }
-                catch (Exception ex)
-                {
-                    UpdateProgress(-1, $"Failed to create config file.\n{ex.Message}");
-                }
-            });
+                });
+            }
+            
         }
         private static readonly HashSet<string> extensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -80,180 +98,110 @@ namespace FAIC
             ".gif", ".apng",
             ".jxl"
         };
-        private async Task Import(Action<Result> onResult)
-        {
-            List<string> sortedPaths = await GetOrderedFrameFilesAsync(cts.Token);
-            
-            if (!cts.IsCancellationRequested)
-            {
-                onResult.Invoke(new Result()
-                {
-                    orderedFrames = sortedPaths,
-                    frameRate = fpsValue.Value
-                });
-            }
-        }
-
-        public async Task<List<string>> GetOrderedFrameFilesAsync(CancellationToken token)
+        private async Task Import(string outputPath, Action onWritten)
         {
             if (string.IsNullOrWhiteSpace(inputPath)
                 || !Directory.Exists(inputPath))
             {
-                MessageBox.Show("Root directory is empty or does not exisdt.", "Error importing folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return null;
-            }
-
-            return await Task.Run(() =>
-            {
-                // Pass 1: count eligible files for a determinate progress bar.
-                int total = CountCandidateFiles(
-                    inputPath,
-                    subfoldersCheckbox.Checked,
-                    token);
-
-                token.ThrowIfCancellationRequested();
-
-                // Pass 2: collect them while reporting real progress.
-                var results = new List<string>(capacity: Math.Max(total, 4));
-                int processed = 0;
-
-                foreach (string path in EnumerateCandidateFiles(
-                    inputPath,
-                    subfoldersCheckbox.Checked,
-                    token))
-                {
-                    token.ThrowIfCancellationRequested();
-
-                    results.Add(path);
-                    processed++;
-
-                    UpdateProgress(processed, path, total);
-                }
-                UpdateProgress(total, $"Sorting {results.Count} valid files...");
-                results.Sort(StringComparer.OrdinalIgnoreCase);
-                return results;
-            }, token);
-        }
-
-        private int CountCandidateFiles(
-            string rootDirectory,
-            bool includeSubfolders,
-            CancellationToken token)
-        {
-            int count = 0;
-
-            foreach (string path in EnumerateAllFilesSafe(rootDirectory, includeSubfolders, token))
-            {
-                token.ThrowIfCancellationRequested();
-
-                if (extensions.Contains(Path.GetExtension(path)))
-                    count++;
-
-                if ((count & 255) == 0) //Only update every 256 files
-                {
-                    UpdateProgress(count, path);
-                }
-            }
-
-            UpdateProgress(0, "");
-
-            return count;
-        }
-        void UpdateProgress(int current, string detailedMessage, int total = -1)
-        {
-            if (InvokeRequired)
-            {
-                BeginInvoke(() => UpdateProgress(current, detailedMessage, total));
+                MessageBox.Show("Root directory is empty or does not exist.", "Error importing folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            if (total <= 0)
+            if (Path.GetFileNameWithoutExtension(outputPath).Length <= 0)
             {
-                if (current < 0)
-                {
-                    importLog.Text = detailedMessage;
-                    return;
-                }
-                importProgress.Style = ProgressBarStyle.Marquee;
-                importLog.Text = $"Found {current} files";
+                MessageBox.Show("Output file name must be at least 1 character.", "Error importing folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
-            else
+            if (!Path.HasExtension(outputPath))
             {
-                importProgress.Style = ProgressBarStyle.Blocks;
-                importProgress.Maximum = total;
-                importProgress.Value = current;
-                importLog.Text = $"Processing {current} of {total} files";
+                MessageBox.Show("Output file name must have an extension.", "Error importing folder", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
-            importLog.Text += $"\n{detailedMessage}";
-        }
-        private static IEnumerable<string> EnumerateCandidateFiles(
-            string rootDirectory,
-            bool includeSubfolders,
-            CancellationToken token)
-        {
-            foreach (string path in EnumerateAllFilesSafe(rootDirectory, includeSubfolders, token))
+            string targetPath = Path.Combine(inputPath, outputPath);
+            var paths = new List<string>();
+
+            IProgress<string> progress = new Progress<string>((str) => { importLog.Text = str; });
+
+            await Task.Run(() =>
             {
-                token.ThrowIfCancellationRequested();
-
-                if (extensions.Contains(Path.GetExtension(path)))
-                    yield return path;
-            }
-        }
-
-        private static IEnumerable<string> EnumerateAllFilesSafe(
-            string rootDirectory,
-            bool includeSubfolders,
-            CancellationToken token)
-        {
-            var pending = new Stack<string>();
-            pending.Push(rootDirectory);
-
-            while (pending.Count > 0)
-            {
-                token.ThrowIfCancellationRequested();
-                string currentDir = pending.Pop();
-
+                progress?.Report($"Discovering files...");
                 IEnumerable<string> files;
                 try
                 {
-                    files = Directory.EnumerateFiles(currentDir);
+                    files = Directory.EnumerateFiles(inputPath, "*.*", subfoldersCheckbox.Checked ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
                 }
-                catch (Exception ex) when (
-                    ex is UnauthorizedAccessException ||
-                    ex is DirectoryNotFoundException ||
-                    ex is IOException)
+                catch (Exception ex)
                 {
-                    continue;
+                    MessageBox.Show(ex.Message, "Directory Read Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
                 }
 
-                foreach (string file in files)
+                ulong count = 0, total = 0;
+                progress?.Report($"Imported {count} of {total} files...");
+                foreach (string path in files)
                 {
-                    token.ThrowIfCancellationRequested();
-                    yield return file;
+                    total++;
+
+                    if (extensions.Contains(Path.GetExtension(path)))
+                    {
+                        count++;
+                        paths.Add(path);
+                    }
+
+                    if ((count & 255) == 0) //Only update every 256 files
+                    {
+                        progress?.Report($"Imported {count} of {total} files...");
+                    }
                 }
 
-                if (!includeSubfolders)
-                    continue;
+                progress?.Report($"Sorting {count} files...");
+                paths.Sort(StringComparer.OrdinalIgnoreCase);
+            }, cts.Token);
 
-                IEnumerable<string> subdirs;
-                try
-                {
-                    subdirs = Directory.EnumerateDirectories(currentDir);
-                }
-                catch (Exception ex) when (
-                    ex is UnauthorizedAccessException ||
-                    ex is DirectoryNotFoundException ||
-                    ex is IOException)
-                {
-                    continue;
-                }
+            progress?.Report("Writing ffconcat file...");
+            Result result = new Result()
+            {
+                orderedFrames = paths
+            };
+            try
+            {
+                //Explicitly tells the encoder NOT to emit the UTF-8 BOM identifier
+                //ffconcat fails when true
+                var utf8WithoutBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
-                foreach (string subdir in subdirs)
+                await File.WriteAllLinesAsync(targetPath, result.ToConcat(), utf8WithoutBom, cts.Token);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Imported Index Write Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            progress?.Report("Finished importing.");
+
+            onWritten.Invoke();
+        }
+        /*private void outputField_Validating(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            outputField.Text = string.Concat(outputField.Text.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
+            if (Path.HasExtension(outputField.Text))
+            {
+                string ext = Path.GetExtension(outputField.Text);
+                if (!ext.Equals(".ffcat", StringComparison.OrdinalIgnoreCase)
+                    && !ext.Equals(".ffconcat", StringComparison.OrdinalIgnoreCase)
+                    && !ext.Equals(".txt", StringComparison.OrdinalIgnoreCase))
                 {
-                    token.ThrowIfCancellationRequested();
-                    pending.Push(subdir);
+                    outputField.Text = Path.GetFileNameWithoutExtension(outputField.Text);
                 }
             }
-        }
+            if (!Path.HasExtension(outputField.Text))
+            {
+                outputField.Text = outputField.Text.TrimEnd('.') + ".ffcat";
+            }
+            if (Path.GetFileNameWithoutExtension(outputField.Text).Length <= 0)
+            {
+                outputField.Text = "index" + outputField.Text;
+            }
+        }*/
     }
 }

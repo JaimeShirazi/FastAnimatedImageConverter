@@ -13,6 +13,10 @@ namespace FAIC
             get => inputPath;
             set
             {
+                if (string.IsNullOrEmpty(value)) return;
+
+                Program.TryOutput(ConsoleMessageType.System, $"Set input file to file at path \"{InputPath}\"");
+
                 if (Path.Exists(value))
                 {
                     //These will be reenabled once ffprobe can read the media
@@ -122,11 +126,35 @@ namespace FAIC
             transparentCheckbox.Enabled = EncodeSettings.IsFormatTransparencySupported(info.Codec);
             if (!transparentCheckbox.Enabled) transparentCheckbox.Checked = false;
 
-            fpsSetting.SelectedIndex = 0;
-            automaticallyChangedFrameRateModeToNearest = false;
-            frameRateLastModeBuffer = 0;
-            MatchFrameRateToMedia();
-            fpsSetting_SelectedIndexChanged(this, default);
+            #region Concat handling
+            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            {
+                fpsSetting.Items.Clear();
+                fpsSetting.Items.Add("Custom");
+                fpsSetting.SelectedIndex = 0;
+                fpsSetting.Enabled = false;
+                fpsValue.Enabled = true;
+                fpsValue.Minimum = 0.001m;
+                fpsValue.Maximum = 10000;
+                fpsValue.Value = 30;
+                speedSlider.Value = DEFAULT_SPEED;
+                speedSlider.Enabled = false;
+            }
+            else
+            {
+                fpsSetting.Items.Clear();
+                fpsSetting.Items.Add("Same");
+                fpsSetting.Items.Add("Nearest");
+                fpsSetting.Items.Add("Blended");
+                fpsSetting.SelectedIndex = 0;
+                fpsSetting.Enabled = true;
+                automaticallyChangedFrameRateModeToNearest = false;
+                frameRateLastModeBuffer = 0;
+                MatchFrameRateToMedia();
+                fpsSetting_SelectedIndexChanged(this, default);
+                speedSlider.Enabled = true;
+            }
+            #endregion
 
             repeatValue.Value = -1;
         }
@@ -281,17 +309,20 @@ namespace FAIC
         [
             0.1, 0.25, 0.33333333333333333, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5, 6, 8, 12, 16, 32
         ];
+        private const int DEFAULT_SPEED = 5;
         private void speedSlider_Scroll(object sender, EventArgs e)
         {
-            if (!automaticallyChangedFrameRateModeToNearest
-                && fpsSetting.SelectedIndex == 0)
+            bool isConcat = latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase);
+            if (!isConcat
+                && (!automaticallyChangedFrameRateModeToNearest
+                && fpsSetting.SelectedIndex == 0))
             {
                 automaticallyChangedFrameRateModeToNearest = true;
                 fpsSetting.SelectedIndex = 1;
                 MatchFrameRateToMedia(factorSpeed: false);
             }
             speedLabel.Text = $"Speed ({Math.Round(Speeds[speedSlider.Value], 2)}x)";
-            if (fpsSetting.SelectedIndex == 0)
+            if (!isConcat && fpsSetting.SelectedIndex == 0)
             {
                 MatchFrameRateToMedia();
             }
@@ -302,6 +333,8 @@ namespace FAIC
         private decimal GetSourceMediaFrameRate() => videoPreview.Latest != null ? (decimal)videoPreview.Latest.EstimatedFrameRate : 0;
         private void MatchFrameRateToMedia(bool factorSpeed = true)
         {
+            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase)) return;
+
             decimal roundedFPS = Math.Round(GetSourceMediaFrameRate() * (factorSpeed ? (decimal)Speeds[speedSlider.Value] : 1), FRAME_RATE_PRECISION);
             if (fpsValue.Enabled)
             {
@@ -381,7 +414,7 @@ namespace FAIC
             }
             saveFileDialogue.InitialDirectory = Path.GetDirectoryName(inputPath);
             saveFileDialogue.FileName = Path.GetFileNameWithoutExtension(inputPath) + "_Converted";
-            if (saveFileDialogue.ShowDialog() == DialogResult.OK)
+            if (saveFileDialogue.ShowDialog(this) == DialogResult.OK)
             {
                 StartEncode(saveFileDialogue.FileName);
             }
@@ -464,7 +497,7 @@ namespace FAIC
                     Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value,
                     Transparent = transparentCheckbox.Checked,
                     onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null,
-                    overrideSafe = latestInfo.Format.Value.Equals("concat", StringComparison.CurrentCultureIgnoreCase)
+                    isConcat = latestInfo.Format.Value.Equals("concat", StringComparison.CurrentCultureIgnoreCase)
                 };
 
                 ConversionWindow conversion = new ConversionWindow(settings);
