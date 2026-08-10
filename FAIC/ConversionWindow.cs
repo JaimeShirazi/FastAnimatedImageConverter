@@ -1,4 +1,5 @@
 ﻿using FAIC.Types;
+using FAIC.Types.Formats;
 using System.Diagnostics;
 using System.IO;
 
@@ -10,7 +11,7 @@ namespace FAIC
         {
             public string outputPath;
             public double expectedLength;
-            public ConvertJobTarget target;
+            public OutputCodec target;
         }
 
         private Guid jobId;
@@ -41,7 +42,10 @@ namespace FAIC
             jobId = Guid.NewGuid();
             Program.RegisterJob(jobId);
             outputPath = settings.OutputPath;
-            expectedLength = (double)(settings.End - settings.Start);
+            expectedLength = (double)(settings.TotalFrames / settings.TargetFrameRate);
+            if (double.IsNaN(expectedLength)
+                || double.IsInfinity(expectedLength))
+                expectedLength = 0;
             timer.Interval = 1000;
             timer.Tick += (_, _) =>
             {
@@ -49,16 +53,16 @@ namespace FAIC
                 Text = $"Conversion Job {Program.GetJobIndex(jobId) + 1} (busy for {seconds}s)";
             };
             timer.Start();
-            isUnknown = settings.OutputFormat == ConvertJobTarget.WEBP;
+            isUnknown = settings.OutputFormat == OutputCodec.WEBP;
 
             //TODO: CONCAT FRAME DURATION & SPEED/FPS NOT WORKING CORRECTLY
             conversionTask = settings.OutputFormat switch
             {
-                ConvertJobTarget.AVIF => EncodeAVIF(settings, cancellationTokenSource.Token),
-                ConvertJobTarget.JXL => EncodeJXL(settings, cancellationTokenSource.Token),
-                ConvertJobTarget.WEBP => EncodeWebP(settings, cancellationTokenSource.Token),
-                ConvertJobTarget.APNG => EncodeAPNG(settings, cancellationTokenSource.Token),
-                ConvertJobTarget.GIF => EncodeGIF(settings, cancellationTokenSource.Token),
+                OutputCodec.AVIF => EncodeAVIF(settings, cancellationTokenSource.Token),
+                OutputCodec.JXL => EncodeJXL(settings, cancellationTokenSource.Token),
+                OutputCodec.WEBP => EncodeWebP(settings, cancellationTokenSource.Token),
+                OutputCodec.APNG => EncodeAPNG(settings, cancellationTokenSource.Token),
+                OutputCodec.GIF => EncodeGIF(settings, cancellationTokenSource.Token),
             };
         }
         private void TryOutput(string packet) => Program.TryOutput(jobId, packet);
@@ -160,7 +164,9 @@ namespace FAIC
             if (complete) return;
             frameStatsLabel.Text = string.IsNullOrEmpty(target.FrameStatsLabel) ? "" : target.FrameStatsLabel;
             sizeStatsLabel.Text = string.IsNullOrEmpty(target.SizeStatsLabel) ? "" : target.SizeStatsLabel;
-            encodeProgressBar.Value = Math.Min((int)(encodeProgressBar.Maximum * ((target.TimeMs * 0.000001) / expectedLength)), encodeProgressBar.Maximum);
+            encodeProgressBar.Value = expectedLength != 0
+                ? Math.Min((int)(encodeProgressBar.Maximum * ((target.TimeMs * 0.000001) / expectedLength)), encodeProgressBar.Maximum)
+                : encodeProgressBar.Minimum;
             encodeProgressBar.Style = target.EncodeProgressBarStyle;
         }
         private void TryFlushProgress()
@@ -312,7 +318,7 @@ namespace FAIC
 
             return process;
         }
-        private async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt = "yuv444p")
+        private async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt)
         {
             string arguments = settings.GetFFmpegArguments() +
                         $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
@@ -400,7 +406,7 @@ namespace FAIC
                 }
             }
         }
-        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string pixfmt = "rgba", string outputPath = "", bool suppressComplete = false)
+        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, string pixfmt, bool omitLoops = false, string outputPath = "", bool suppressComplete = false)
         {
             int loops = Math.Min(settings.Repeats + 1, 0);
             string targetOutput = string.IsNullOrEmpty(outputPath) ? settings.OutputPath : outputPath;
@@ -482,7 +488,7 @@ namespace FAIC
 
             TryOutput("Progress does not currently display for WebP, but it is still processing. This is an issue with ffmpeg. It will say 0 frames, but it is still processing, please wait until you see the complete message.", ConsoleMessageType.Warning);
 
-            await EncodeWithFFmpeg(settings, arguments, token, pixfmt: settings.Quality >= 100 ? "bgra" : (settings.Transparent ? "yuva420p" : "yuv420p"));
+            await EncodeWithFFmpeg(settings, arguments, token, "bgra");
         }
         public async Task EncodeJXL(EncodeSettings settings, CancellationToken token)
         {
@@ -512,7 +518,7 @@ namespace FAIC
 
             arguments += "-f rawvideo ";
 
-            await EncodeWithFFmpeg(settings, arguments, token);
+            await EncodeWithFFmpeg(settings, arguments, token, settings.Transparent ? "rgba" : "rgb24");
         }
         public async Task EncodeAPNG(EncodeSettings settings, CancellationToken token)
         {
@@ -524,7 +530,7 @@ namespace FAIC
             int apngCompression = (int)Math.Round(9 * (1.0 - settings.Quality / 100.0));
             arguments += $"-compression_level {apngCompression} ";
 
-            await EncodeWithFFmpeg(settings, arguments, token, omitLoops: true);
+            await EncodeWithFFmpeg(settings, arguments, token, settings.Transparent ? "rgba" : "rgb24", omitLoops: true);
         }
         public async Task EncodeGIF(EncodeSettings settings, CancellationToken token)
         {
@@ -532,10 +538,10 @@ namespace FAIC
             {
                 TryOutput("Outputing GIF with transparency. This requires that temporary PNG frames are generated. Depending on your media, this may result in high temporary storage usage. Ensure that your system can handle the output resolution and framerate before proceeding.", ConsoleMessageType.Warning);
             }
-            if (settings.Width > 800 || settings.Height > 800)
+            if (settings.OutputWidth > 800 || settings.OutputHeight > 800)
             {
                 switch (MessageBox.Show(
-                        $"Outputing GIF with size {settings.Width}x{settings.Height}. This may result in large file sizes. You may proceed, or consider resizing to a smaller resolution and/or using a more modern format with better compression.",
+                        $"Outputing GIF with size {settings.OutputWidth}x{settings.OutputHeight}. This may result in large file sizes. You may proceed, or consider resizing to a smaller resolution and/or using a more modern format with better compression.",
                         "Large Output Resolution",
                         MessageBoxButtons.OKCancel,
                         MessageBoxIcon.Warning
@@ -555,7 +561,7 @@ namespace FAIC
                 _ => settings.Repeats
             } + " ";
 
-            string arguments = $"-Q {Math.Max(settings.Quality, 1)} {repetition}--width={settings.Width} --height={settings.Height} ";
+            string arguments = $"-Q {Math.Max(settings.Quality, 1)} {repetition}--width={settings.OutputWidth} --height={settings.OutputHeight} ";
             if (settings.Transparent) arguments += $"-r {settings.TargetFrameRate} ";
             arguments += $"-o \"{settings.OutputPath}\" ";
 
@@ -574,13 +580,13 @@ namespace FAIC
 
             if (settings.Transparent)
             {
-                int frameDigits = (int)Math.Floor(Math.Log10((double)((settings.End - settings.Start) * settings.TargetFrameRate))) + 1;
+                int frameDigits = (int)Math.Floor(Math.Log10(settings.TotalFrames)) + 1;
 
                 try
                 {
                     Directory.CreateDirectory(transparentTempFramesDirectory);
 
-                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"), suppressComplete: true);
+                    await EncodeWithFFmpeg(settings, "", token, "rgba", outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"), suppressComplete: true);
 
                     TryOutput("Done preparing frames.", ConsoleMessageType.Progress);
 
@@ -621,7 +627,7 @@ namespace FAIC
             {
                 try
                 {
-                    await EncodeWithFFmpegPipe(settings, createGifski, token);
+                    await EncodeWithFFmpegPipe(settings, createGifski, token, "yuv444p");
                 }
                 catch { }
                 finally

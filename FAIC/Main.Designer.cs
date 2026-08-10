@@ -42,16 +42,24 @@ namespace FAIC
             settingsTable = new TableLayoutPanel();
             resizeLabel = new Label();
             resizeSlider = new TrackBar();
-            resizeDimensionLabel = new Label();
-            resizeDimensionContainer = new Panel();
-            resizeDimensionValue = new NumericUpDown();
+            relativeSizeLabel = new Label();
+            relativeSizeInputContainer = new Panel();
+            relativeSizeInput = new FAIC.Types.SizeRatio();
             settingsDivider1 = new Panel();
-            trimColumnLayoutPanel = new TableLayoutPanel();
-            trimLabel = new Label();
-            firstFrame = new Label();
+            cutsColumnLayoutPanel = new TableLayoutPanel();
+            cutsLabel = new Label();
+            indexLabel = new Label();
+            cutNumberContainer = new Panel();
+            cutNumberInput = new FAIC.Types.Forms.CutsNumericUpDown();
+            cutsButtonsLayoutPanel = new TableLayoutPanel();
+            addCutButton = new Button();
+            removeCutButton = new Button();
+            cutColumnLayoutPanel = new TableLayoutPanel();
+            cutLabel = new Label();
+            startLabel = new Label();
             firstFrameContainer = new Panel();
             beginningInput = new FAIC.Types.Forms.TimeNumericUpDown();
-            lastFrameLabel = new Label();
+            endLabel = new Label();
             lastFrameContainer = new Panel();
             endInput = new FAIC.Types.Forms.TimeNumericUpDown();
             settingsDivider2 = new Panel();
@@ -82,13 +90,13 @@ namespace FAIC
             videoContainingPanel = new Panel();
             videoPreviewHost = new ElementHost();
             previewControlsPanel = new TableLayoutPanel();
-            trimStartHereButton = new Button();
+            cutsControl = new FAIC.Types.Forms.CutsControl();
             playhead = new TrackBar();
-            trimEndHereButton = new Button();
             playbackConsoleTable = new TableLayoutPanel();
             reverseSeekButton = new Button();
             playButton = new Button();
             seekButton = new Button();
+            magnetToggleButton = new FAIC.Types.Forms.MagnetToggleButton();
             conversionPanel = new TableLayoutPanel();
             commandLinePaddingPanel = new Panel();
             actionsPanel = new Panel();
@@ -99,9 +107,13 @@ namespace FAIC
             settingsGroupBox.SuspendLayout();
             settingsTable.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)resizeSlider).BeginInit();
-            resizeDimensionContainer.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)resizeDimensionValue).BeginInit();
-            trimColumnLayoutPanel.SuspendLayout();
+            relativeSizeInputContainer.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)relativeSizeInput).BeginInit();
+            cutsColumnLayoutPanel.SuspendLayout();
+            cutNumberContainer.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)cutNumberInput).BeginInit();
+            cutsButtonsLayoutPanel.SuspendLayout();
+            cutColumnLayoutPanel.SuspendLayout();
             firstFrameContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)beginningInput).BeginInit();
             lastFrameContainer.SuspendLayout();
@@ -194,7 +206,7 @@ namespace FAIC
             commandLineOutput.Margin = new Padding(2);
             commandLineOutput.Name = "commandLineOutput";
             commandLineOutput.ReadOnly = true;
-            commandLineOutput.Size = new Size(312, 122);
+            commandLineOutput.Size = new Size(312, 66);
             commandLineOutput.TabIndex = 0;
             commandLineOutput.Text = "";
             tooltips.SetToolTip(commandLineOutput, "Console output from the converter tools.");
@@ -210,7 +222,7 @@ namespace FAIC
             settingsGroupBox.Margin = new Padding(2, 2, 2, 0);
             settingsGroupBox.Name = "settingsGroupBox";
             settingsGroupBox.Padding = new Padding(2);
-            settingsGroupBox.Size = new Size(324, 380);
+            settingsGroupBox.Size = new Size(324, 436);
             settingsGroupBox.TabIndex = 0;
             settingsGroupBox.TabStop = false;
             settingsGroupBox.Text = "Settings";
@@ -226,35 +238,38 @@ namespace FAIC
             settingsTable.Controls.Add(qualitySlider, 1, 0);
             settingsTable.Controls.Add(resizeLabel, 0, 1);
             settingsTable.Controls.Add(resizeSlider, 1, 1);
-            settingsTable.Controls.Add(resizeDimensionLabel, 0, 2);
-            settingsTable.Controls.Add(resizeDimensionContainer, 1, 2);
+            settingsTable.Controls.Add(relativeSizeLabel, 0, 2);
+            settingsTable.Controls.Add(relativeSizeInputContainer, 1, 2);
             settingsTable.Controls.Add(settingsDivider1, 0, 3);
-            settingsTable.Controls.Add(trimColumnLayoutPanel, 0, 4);
-            settingsTable.Controls.Add(firstFrameContainer, 1, 4);
-            settingsTable.Controls.Add(lastFrameLabel, 0, 5);
-            settingsTable.Controls.Add(lastFrameContainer, 1, 5);
-            settingsTable.Controls.Add(settingsDivider2, 0, 6);
-            settingsTable.Controls.Add(speedLabel, 0, 7);
-            settingsTable.Controls.Add(speedSlider, 1, 7);
-            settingsTable.Controls.Add(fpsColumnLayoutPanel, 0, 8);
-            settingsTable.Controls.Add(fpsSetting, 1, 8);
-            settingsTable.Controls.Add(fpsTargetLabel, 0, 9);
-            settingsTable.Controls.Add(fpsContainer, 1, 9);
-            settingsTable.Controls.Add(settingsDivider3, 0, 10);
-            settingsTable.Controls.Add(formatLabel, 0, 11);
-            settingsTable.Controls.Add(transparentCheckbox, 1, 11);
-            settingsTable.Controls.Add(repeatsLabel, 0, 12);
-            settingsTable.Controls.Add(repeatContainer, 1, 12);
-            settingsTable.Controls.Add(settingsDivider4, 0, 13);
-            settingsTable.Controls.Add(advancedLabel, 0, 14);
-            settingsTable.Controls.Add(editArgumentsCheckbox, 1, 14);
-            settingsTable.Controls.Add(processingModeLabel, 0, 15);
-            settingsTable.Controls.Add(processingLayoutPanel, 1, 15);
+            settingsTable.Controls.Add(cutsColumnLayoutPanel, 0, 4);
+            settingsTable.Controls.Add(cutNumberContainer, 1, 4);
+            settingsTable.Controls.Add(cutsButtonsLayoutPanel, 1, 5);
+            settingsTable.Controls.Add(cutColumnLayoutPanel, 0, 6);
+            settingsTable.Controls.Add(firstFrameContainer, 1, 6);
+            settingsTable.Controls.Add(endLabel, 0, 7);
+            settingsTable.Controls.Add(lastFrameContainer, 1, 7);
+            settingsTable.Controls.Add(settingsDivider2, 0, 8);
+            settingsTable.Controls.Add(speedLabel, 0, 9);
+            settingsTable.Controls.Add(speedSlider, 1, 9);
+            settingsTable.Controls.Add(fpsColumnLayoutPanel, 0, 10);
+            settingsTable.Controls.Add(fpsSetting, 1, 10);
+            settingsTable.Controls.Add(fpsTargetLabel, 0, 11);
+            settingsTable.Controls.Add(fpsContainer, 1, 11);
+            settingsTable.Controls.Add(settingsDivider3, 0, 12);
+            settingsTable.Controls.Add(formatLabel, 0, 13);
+            settingsTable.Controls.Add(transparentCheckbox, 1, 13);
+            settingsTable.Controls.Add(repeatsLabel, 0, 14);
+            settingsTable.Controls.Add(repeatContainer, 1, 14);
+            settingsTable.Controls.Add(settingsDivider4, 0, 15);
+            settingsTable.Controls.Add(advancedLabel, 0, 16);
+            settingsTable.Controls.Add(editArgumentsCheckbox, 1, 16);
+            settingsTable.Controls.Add(processingModeLabel, 0, 17);
+            settingsTable.Controls.Add(processingLayoutPanel, 1, 17);
             settingsTable.Dock = DockStyle.Fill;
             settingsTable.Location = new Point(2, 18);
             settingsTable.Margin = new Padding(2, 2, 2, 0);
             settingsTable.Name = "settingsTable";
-            settingsTable.RowCount = 16;
+            settingsTable.RowCount = 18;
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
@@ -271,8 +286,9 @@ namespace FAIC
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
-            settingsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            settingsTable.Size = new Size(320, 360);
+            settingsTable.RowStyles.Add(new RowStyle());
+            settingsTable.RowStyles.Add(new RowStyle());
+            settingsTable.Size = new Size(320, 416);
             settingsTable.TabIndex = 0;
             // 
             // resizeLabel
@@ -305,43 +321,41 @@ namespace FAIC
             resizeSlider.Value = 100;
             resizeSlider.Scroll += resizeSlider_Scroll;
             // 
-            // resizeDimensionLabel
+            // relativeSizeLabel
             // 
-            resizeDimensionLabel.Dock = DockStyle.Fill;
-            resizeDimensionLabel.Location = new Point(2, 46);
-            resizeDimensionLabel.Margin = new Padding(2, 0, 2, 0);
-            resizeDimensionLabel.MinimumSize = new Size(45, 0);
-            resizeDimensionLabel.Name = "resizeDimensionLabel";
-            resizeDimensionLabel.Size = new Size(94, 27);
-            resizeDimensionLabel.TabIndex = 4;
-            resizeDimensionLabel.Text = "Height";
-            resizeDimensionLabel.TextAlign = ContentAlignment.MiddleRight;
+            relativeSizeLabel.Dock = DockStyle.Fill;
+            relativeSizeLabel.Location = new Point(2, 46);
+            relativeSizeLabel.Margin = new Padding(2, 0, 2, 0);
+            relativeSizeLabel.MinimumSize = new Size(45, 0);
+            relativeSizeLabel.Name = "relativeSizeLabel";
+            relativeSizeLabel.Size = new Size(94, 27);
+            relativeSizeLabel.TabIndex = 4;
+            relativeSizeLabel.Text = "Pixels";
+            relativeSizeLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
-            // resizeDimensionContainer
+            // relativeSizeInputContainer
             // 
-            resizeDimensionContainer.AutoSize = true;
-            resizeDimensionContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            resizeDimensionContainer.Controls.Add(resizeDimensionValue);
-            resizeDimensionContainer.Dock = DockStyle.Fill;
-            resizeDimensionContainer.Location = new Point(101, 49);
-            resizeDimensionContainer.Name = "resizeDimensionContainer";
-            resizeDimensionContainer.Size = new Size(216, 21);
-            resizeDimensionContainer.TabIndex = 5;
+            relativeSizeInputContainer.AutoSize = true;
+            relativeSizeInputContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            relativeSizeInputContainer.Controls.Add(relativeSizeInput);
+            relativeSizeInputContainer.Dock = DockStyle.Fill;
+            relativeSizeInputContainer.Location = new Point(101, 49);
+            relativeSizeInputContainer.Name = "relativeSizeInputContainer";
+            relativeSizeInputContainer.Size = new Size(216, 21);
+            relativeSizeInputContainer.TabIndex = 5;
             // 
-            // resizeDimensionValue
+            // relativeSizeInput
             // 
-            resizeDimensionValue.AccessibleName = "Resize Input";
-            resizeDimensionValue.Dock = DockStyle.Fill;
-            resizeDimensionValue.Location = new Point(0, 0);
-            resizeDimensionValue.Margin = new Padding(2);
-            resizeDimensionValue.Maximum = new decimal(new int[] { 16384, 0, 0, 0 });
-            resizeDimensionValue.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
-            resizeDimensionValue.Name = "resizeDimensionValue";
-            resizeDimensionValue.Size = new Size(216, 23);
-            resizeDimensionValue.TabIndex = 0;
-            tooltips.SetToolTip(resizeDimensionValue, "The desired output resolution in pixels of the largest dimension. The other dimension will be rescaled as well to preserve the aspect ratio.");
-            resizeDimensionValue.Value = new decimal(new int[] { 1, 0, 0, 0 });
-            resizeDimensionValue.ValueChanged += resizeDimensionValue_ValueChanged;
+            relativeSizeInput.AccessibleName = "Resize Input";
+            relativeSizeInput.Dock = DockStyle.Fill;
+            relativeSizeInput.EffectiveHeight = 1;
+            relativeSizeInput.EffectiveWidth = 1;
+            relativeSizeInput.Location = new Point(0, 0);
+            relativeSizeInput.Maximum = new decimal(new int[] { int.MaxValue, 0, 0, 0 });
+            relativeSizeInput.Name = "relativeSizeInput";
+            relativeSizeInput.Size = new Size(216, 23);
+            relativeSizeInput.TabIndex = 1;
+            tooltips.SetToolTip(relativeSizeInput, resources.GetString("relativeSizeInput.ToolTip"));
             // 
             // settingsDivider1
             // 
@@ -355,48 +369,161 @@ namespace FAIC
             settingsDivider1.Size = new Size(316, 8);
             settingsDivider1.TabIndex = 6;
             // 
-            // trimColumnLayoutPanel
+            // cutsColumnLayoutPanel
             // 
-            trimColumnLayoutPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            trimColumnLayoutPanel.AutoSize = true;
-            trimColumnLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            trimColumnLayoutPanel.ColumnCount = 2;
-            trimColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle());
-            trimColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            trimColumnLayoutPanel.Controls.Add(trimLabel, 0, 0);
-            trimColumnLayoutPanel.Controls.Add(firstFrame, 1, 0);
-            trimColumnLayoutPanel.Location = new Point(0, 85);
-            trimColumnLayoutPanel.Margin = new Padding(0);
-            trimColumnLayoutPanel.Name = "trimColumnLayoutPanel";
-            trimColumnLayoutPanel.RowCount = 1;
-            trimColumnLayoutPanel.RowStyles.Add(new RowStyle());
-            trimColumnLayoutPanel.Size = new Size(98, 29);
-            trimColumnLayoutPanel.TabIndex = 7;
+            cutsColumnLayoutPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            cutsColumnLayoutPanel.AutoSize = true;
+            cutsColumnLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            cutsColumnLayoutPanel.ColumnCount = 2;
+            cutsColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle());
+            cutsColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            cutsColumnLayoutPanel.Controls.Add(cutsLabel, 0, 0);
+            cutsColumnLayoutPanel.Controls.Add(indexLabel, 1, 0);
+            cutsColumnLayoutPanel.Location = new Point(0, 85);
+            cutsColumnLayoutPanel.Margin = new Padding(0);
+            cutsColumnLayoutPanel.Name = "cutsColumnLayoutPanel";
+            cutsColumnLayoutPanel.RowCount = 1;
+            cutsColumnLayoutPanel.RowStyles.Add(new RowStyle());
+            cutsColumnLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            cutsColumnLayoutPanel.Size = new Size(98, 29);
+            cutsColumnLayoutPanel.TabIndex = 7;
             // 
-            // trimLabel
+            // cutsLabel
             // 
-            trimLabel.AutoSize = true;
-            trimLabel.Dock = DockStyle.Fill;
-            trimLabel.Location = new Point(2, 0);
-            trimLabel.Margin = new Padding(2, 0, 2, 0);
-            trimLabel.Name = "trimLabel";
-            trimLabel.Size = new Size(31, 29);
-            trimLabel.TabIndex = 6;
-            trimLabel.Text = "Trim";
-            trimLabel.TextAlign = ContentAlignment.MiddleLeft;
+            cutsLabel.AutoSize = true;
+            cutsLabel.Dock = DockStyle.Fill;
+            cutsLabel.Location = new Point(2, 0);
+            cutsLabel.Margin = new Padding(2, 0, 2, 0);
+            cutsLabel.Name = "cutsLabel";
+            cutsLabel.Size = new Size(31, 29);
+            cutsLabel.TabIndex = 6;
+            cutsLabel.Text = "Cuts";
+            cutsLabel.TextAlign = ContentAlignment.MiddleLeft;
             // 
-            // firstFrame
+            // indexLabel
             // 
-            firstFrame.AutoSize = true;
-            firstFrame.Dock = DockStyle.Fill;
-            firstFrame.Location = new Point(37, 0);
-            firstFrame.Margin = new Padding(2, 0, 2, 0);
-            firstFrame.MinimumSize = new Size(45, 0);
-            firstFrame.Name = "firstFrame";
-            firstFrame.Size = new Size(59, 29);
-            firstFrame.TabIndex = 7;
-            firstFrame.Text = "Start";
-            firstFrame.TextAlign = ContentAlignment.MiddleRight;
+            indexLabel.AutoSize = true;
+            indexLabel.Dock = DockStyle.Fill;
+            indexLabel.Location = new Point(37, 0);
+            indexLabel.Margin = new Padding(2, 0, 2, 0);
+            indexLabel.MinimumSize = new Size(45, 0);
+            indexLabel.Name = "indexLabel";
+            indexLabel.Size = new Size(59, 29);
+            indexLabel.TabIndex = 7;
+            indexLabel.Text = "#";
+            indexLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // cutNumberContainer
+            // 
+            cutNumberContainer.AutoSize = true;
+            cutNumberContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            cutNumberContainer.Controls.Add(cutNumberInput);
+            cutNumberContainer.Dock = DockStyle.Fill;
+            cutNumberContainer.Location = new Point(101, 88);
+            cutNumberContainer.Name = "cutNumberContainer";
+            cutNumberContainer.Size = new Size(216, 23);
+            cutNumberContainer.TabIndex = 33;
+            // 
+            // cutNumberInput
+            // 
+            cutNumberInput.AutoSize = true;
+            cutNumberInput.Dock = DockStyle.Fill;
+            cutNumberInput.Location = new Point(0, 0);
+            cutNumberInput.Margin = new Padding(2);
+            cutNumberInput.Maximum = new decimal(new int[] { 1, 0, 0, 0 });
+            cutNumberInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            cutNumberInput.Name = "cutNumberInput";
+            cutNumberInput.Size = new Size(216, 23);
+            cutNumberInput.TabIndex = 0;
+            cutNumberInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            cutNumberInput.ValueChanged += cutNumberInput_ValueChanged;
+            // 
+            // cutsButtonsLayoutPanel
+            // 
+            cutsButtonsLayoutPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            cutsButtonsLayoutPanel.AutoSize = true;
+            cutsButtonsLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            cutsButtonsLayoutPanel.ColumnCount = 2;
+            cutsButtonsLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            cutsButtonsLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            cutsButtonsLayoutPanel.Controls.Add(addCutButton, 0, 0);
+            cutsButtonsLayoutPanel.Controls.Add(removeCutButton, 1, 0);
+            cutsButtonsLayoutPanel.Location = new Point(98, 114);
+            cutsButtonsLayoutPanel.Margin = new Padding(0);
+            cutsButtonsLayoutPanel.Name = "cutsButtonsLayoutPanel";
+            cutsButtonsLayoutPanel.RowCount = 1;
+            cutsButtonsLayoutPanel.RowStyles.Add(new RowStyle());
+            cutsButtonsLayoutPanel.Size = new Size(222, 27);
+            cutsButtonsLayoutPanel.TabIndex = 32;
+            // 
+            // addCutButton
+            // 
+            addCutButton.Dock = DockStyle.Fill;
+            addCutButton.Location = new Point(2, 2);
+            addCutButton.Margin = new Padding(2);
+            addCutButton.Name = "addCutButton";
+            addCutButton.Size = new Size(107, 23);
+            addCutButton.TabIndex = 8;
+            addCutButton.Text = "Add (Split)";
+            addCutButton.UseVisualStyleBackColor = true;
+            addCutButton.Click += addCutButton_Click;
+            // 
+            // removeCutButton
+            // 
+            removeCutButton.Dock = DockStyle.Fill;
+            removeCutButton.Enabled = false;
+            removeCutButton.Location = new Point(113, 2);
+            removeCutButton.Margin = new Padding(2);
+            removeCutButton.Name = "removeCutButton";
+            removeCutButton.Size = new Size(107, 23);
+            removeCutButton.TabIndex = 9;
+            removeCutButton.Text = "Remove";
+            removeCutButton.UseVisualStyleBackColor = true;
+            removeCutButton.Click += removeCutButton_Click;
+            // 
+            // cutColumnLayoutPanel
+            // 
+            cutColumnLayoutPanel.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            cutColumnLayoutPanel.AutoSize = true;
+            cutColumnLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            cutColumnLayoutPanel.ColumnCount = 2;
+            cutColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle());
+            cutColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            cutColumnLayoutPanel.Controls.Add(cutLabel, 0, 0);
+            cutColumnLayoutPanel.Controls.Add(startLabel, 1, 0);
+            cutColumnLayoutPanel.Location = new Point(0, 141);
+            cutColumnLayoutPanel.Margin = new Padding(0);
+            cutColumnLayoutPanel.Name = "cutColumnLayoutPanel";
+            cutColumnLayoutPanel.RowCount = 1;
+            cutColumnLayoutPanel.RowStyles.Add(new RowStyle());
+            cutColumnLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            cutColumnLayoutPanel.Size = new Size(98, 29);
+            cutColumnLayoutPanel.TabIndex = 31;
+            // 
+            // cutLabel
+            // 
+            cutLabel.AutoSize = true;
+            cutLabel.Dock = DockStyle.Fill;
+            cutLabel.Location = new Point(2, 0);
+            cutLabel.Margin = new Padding(2, 0, 2, 0);
+            cutLabel.Name = "cutLabel";
+            cutLabel.Size = new Size(26, 29);
+            cutLabel.TabIndex = 6;
+            cutLabel.Text = "Cut";
+            cutLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // startLabel
+            // 
+            startLabel.AutoSize = true;
+            startLabel.Dock = DockStyle.Fill;
+            startLabel.Location = new Point(32, 0);
+            startLabel.Margin = new Padding(2, 0, 2, 0);
+            startLabel.MinimumSize = new Size(45, 0);
+            startLabel.Name = "startLabel";
+            startLabel.Size = new Size(64, 29);
+            startLabel.TabIndex = 7;
+            startLabel.Text = "Start";
+            startLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
             // firstFrameContainer
             // 
@@ -404,7 +531,7 @@ namespace FAIC
             firstFrameContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             firstFrameContainer.Controls.Add(beginningInput);
             firstFrameContainer.Dock = DockStyle.Fill;
-            firstFrameContainer.Location = new Point(101, 88);
+            firstFrameContainer.Location = new Point(101, 144);
             firstFrameContainer.Name = "firstFrameContainer";
             firstFrameContainer.Size = new Size(216, 23);
             firstFrameContainer.TabIndex = 8;
@@ -422,19 +549,20 @@ namespace FAIC
             beginningInput.Size = new Size(216, 23);
             beginningInput.TabIndex = 0;
             tooltips.SetToolTip(beginningInput, "Where to start the converted output relative to the source media.");
+            beginningInput.ValueChanged += beginningInput_ValueChanged;
             // 
-            // lastFrameLabel
+            // endLabel
             // 
-            lastFrameLabel.AutoSize = true;
-            lastFrameLabel.Dock = DockStyle.Fill;
-            lastFrameLabel.Location = new Point(2, 114);
-            lastFrameLabel.Margin = new Padding(2, 0, 2, 0);
-            lastFrameLabel.MinimumSize = new Size(45, 0);
-            lastFrameLabel.Name = "lastFrameLabel";
-            lastFrameLabel.Size = new Size(94, 29);
-            lastFrameLabel.TabIndex = 9;
-            lastFrameLabel.Text = "End";
-            lastFrameLabel.TextAlign = ContentAlignment.MiddleRight;
+            endLabel.AutoSize = true;
+            endLabel.Dock = DockStyle.Fill;
+            endLabel.Location = new Point(2, 170);
+            endLabel.Margin = new Padding(2, 0, 2, 0);
+            endLabel.MinimumSize = new Size(45, 0);
+            endLabel.Name = "endLabel";
+            endLabel.Size = new Size(94, 29);
+            endLabel.TabIndex = 9;
+            endLabel.Text = "End";
+            endLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
             // lastFrameContainer
             // 
@@ -442,7 +570,7 @@ namespace FAIC
             lastFrameContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             lastFrameContainer.Controls.Add(endInput);
             lastFrameContainer.Dock = DockStyle.Fill;
-            lastFrameContainer.Location = new Point(101, 117);
+            lastFrameContainer.Location = new Point(101, 173);
             lastFrameContainer.Name = "lastFrameContainer";
             lastFrameContainer.Size = new Size(216, 23);
             lastFrameContainer.TabIndex = 10;
@@ -460,12 +588,13 @@ namespace FAIC
             endInput.Size = new Size(216, 23);
             endInput.TabIndex = 0;
             tooltips.SetToolTip(endInput, "Where to end the converted output relative to the source media.");
+            endInput.ValueChanged += endInput_ValueChanged;
             // 
             // settingsDivider2
             // 
             settingsDivider2.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             settingsTable.SetColumnSpan(settingsDivider2, 2);
-            settingsDivider2.Location = new Point(2, 145);
+            settingsDivider2.Location = new Point(2, 201);
             settingsDivider2.Margin = new Padding(2);
             settingsDivider2.MaximumSize = new Size(0, 8);
             settingsDivider2.MinimumSize = new Size(0, 8);
@@ -477,7 +606,7 @@ namespace FAIC
             // 
             speedLabel.AutoSize = true;
             speedLabel.Dock = DockStyle.Fill;
-            speedLabel.Location = new Point(2, 155);
+            speedLabel.Location = new Point(2, 211);
             speedLabel.Margin = new Padding(2, 0, 2, 0);
             speedLabel.Name = "speedLabel";
             speedLabel.Size = new Size(94, 23);
@@ -493,7 +622,7 @@ namespace FAIC
             speedSlider.DataBindings.Add(new Binding("DataContext", settingsBindingSource, "Quality", true));
             speedSlider.DataBindings.Add(new Binding("Value", settingsBindingSource, "Quality", true, DataSourceUpdateMode.OnPropertyChanged));
             speedSlider.LargeChange = 1;
-            speedSlider.Location = new Point(100, 157);
+            speedSlider.Location = new Point(100, 213);
             speedSlider.Margin = new Padding(2);
             speedSlider.Maximum = 16;
             speedSlider.Name = "speedSlider";
@@ -513,7 +642,7 @@ namespace FAIC
             fpsColumnLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             fpsColumnLayoutPanel.Controls.Add(fpsLabel, 0, 0);
             fpsColumnLayoutPanel.Controls.Add(fpsModeLabel, 1, 0);
-            fpsColumnLayoutPanel.Location = new Point(0, 178);
+            fpsColumnLayoutPanel.Location = new Point(0, 234);
             fpsColumnLayoutPanel.Margin = new Padding(0);
             fpsColumnLayoutPanel.Name = "fpsColumnLayoutPanel";
             fpsColumnLayoutPanel.RowCount = 1;
@@ -552,7 +681,7 @@ namespace FAIC
             fpsSetting.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             fpsSetting.FormattingEnabled = true;
             fpsSetting.Items.AddRange(new object[] { "Same", "Nearest", "Blended" });
-            fpsSetting.Location = new Point(100, 180);
+            fpsSetting.Location = new Point(100, 236);
             fpsSetting.Margin = new Padding(2);
             fpsSetting.MaxDropDownItems = 3;
             fpsSetting.Name = "fpsSetting";
@@ -565,7 +694,7 @@ namespace FAIC
             // 
             fpsTargetLabel.AutoSize = true;
             fpsTargetLabel.Dock = DockStyle.Fill;
-            fpsTargetLabel.Location = new Point(2, 205);
+            fpsTargetLabel.Location = new Point(2, 261);
             fpsTargetLabel.Margin = new Padding(2, 0, 2, 0);
             fpsTargetLabel.Name = "fpsTargetLabel";
             fpsTargetLabel.Size = new Size(94, 29);
@@ -579,7 +708,7 @@ namespace FAIC
             fpsContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             fpsContainer.Controls.Add(fpsValue);
             fpsContainer.Dock = DockStyle.Fill;
-            fpsContainer.Location = new Point(101, 208);
+            fpsContainer.Location = new Point(101, 264);
             fpsContainer.Name = "fpsContainer";
             fpsContainer.Size = new Size(216, 23);
             fpsContainer.TabIndex = 19;
@@ -603,7 +732,7 @@ namespace FAIC
             // 
             settingsDivider3.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             settingsTable.SetColumnSpan(settingsDivider3, 2);
-            settingsDivider3.Location = new Point(2, 236);
+            settingsDivider3.Location = new Point(2, 292);
             settingsDivider3.Margin = new Padding(2);
             settingsDivider3.MaximumSize = new Size(0, 8);
             settingsDivider3.MinimumSize = new Size(0, 8);
@@ -615,7 +744,7 @@ namespace FAIC
             // 
             formatLabel.AutoSize = true;
             formatLabel.Dock = DockStyle.Fill;
-            formatLabel.Location = new Point(2, 246);
+            formatLabel.Location = new Point(2, 302);
             formatLabel.Margin = new Padding(2, 0, 2, 0);
             formatLabel.MinimumSize = new Size(45, 0);
             formatLabel.Name = "formatLabel";
@@ -627,8 +756,10 @@ namespace FAIC
             // transparentCheckbox
             // 
             transparentCheckbox.AutoSize = true;
+            transparentCheckbox.Checked = true;
+            transparentCheckbox.CheckState = CheckState.Checked;
             transparentCheckbox.Dock = DockStyle.Fill;
-            transparentCheckbox.Location = new Point(100, 248);
+            transparentCheckbox.Location = new Point(100, 304);
             transparentCheckbox.Margin = new Padding(2);
             transparentCheckbox.Name = "transparentCheckbox";
             transparentCheckbox.Size = new Size(218, 19);
@@ -640,7 +771,7 @@ namespace FAIC
             // 
             repeatsLabel.AutoSize = true;
             repeatsLabel.Dock = DockStyle.Fill;
-            repeatsLabel.Location = new Point(2, 269);
+            repeatsLabel.Location = new Point(2, 325);
             repeatsLabel.Margin = new Padding(2, 0, 2, 0);
             repeatsLabel.Name = "repeatsLabel";
             repeatsLabel.Size = new Size(94, 29);
@@ -654,7 +785,7 @@ namespace FAIC
             repeatContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             repeatContainer.Controls.Add(repeatValue);
             repeatContainer.Dock = DockStyle.Fill;
-            repeatContainer.Location = new Point(101, 272);
+            repeatContainer.Location = new Point(101, 328);
             repeatContainer.Name = "repeatContainer";
             repeatContainer.Size = new Size(216, 23);
             repeatContainer.TabIndex = 21;
@@ -671,13 +802,12 @@ namespace FAIC
             repeatValue.Name = "repeatValue";
             repeatValue.Size = new Size(216, 23);
             repeatValue.TabIndex = 0;
-            tooltips.SetToolTip(repeatValue, resources.GetString("repeatValue.ToolTip"));
             // 
             // settingsDivider4
             // 
             settingsDivider4.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             settingsTable.SetColumnSpan(settingsDivider4, 2);
-            settingsDivider4.Location = new Point(2, 300);
+            settingsDivider4.Location = new Point(2, 356);
             settingsDivider4.Margin = new Padding(2);
             settingsDivider4.MaximumSize = new Size(0, 8);
             settingsDivider4.MinimumSize = new Size(0, 8);
@@ -689,7 +819,7 @@ namespace FAIC
             // 
             advancedLabel.AutoSize = true;
             advancedLabel.Dock = DockStyle.Fill;
-            advancedLabel.Location = new Point(2, 310);
+            advancedLabel.Location = new Point(2, 366);
             advancedLabel.Margin = new Padding(2, 0, 2, 0);
             advancedLabel.MinimumSize = new Size(45, 0);
             advancedLabel.Name = "advancedLabel";
@@ -702,7 +832,7 @@ namespace FAIC
             // 
             editArgumentsCheckbox.AutoSize = true;
             editArgumentsCheckbox.Dock = DockStyle.Fill;
-            editArgumentsCheckbox.Location = new Point(100, 312);
+            editArgumentsCheckbox.Location = new Point(100, 368);
             editArgumentsCheckbox.Margin = new Padding(2);
             editArgumentsCheckbox.Name = "editArgumentsCheckbox";
             editArgumentsCheckbox.Size = new Size(218, 19);
@@ -714,7 +844,7 @@ namespace FAIC
             // 
             processingModeLabel.AutoSize = true;
             processingModeLabel.Dock = DockStyle.Fill;
-            processingModeLabel.Location = new Point(2, 333);
+            processingModeLabel.Location = new Point(2, 389);
             processingModeLabel.Margin = new Padding(2, 0, 2, 0);
             processingModeLabel.MinimumSize = new Size(45, 0);
             processingModeLabel.Name = "processingModeLabel";
@@ -732,7 +862,7 @@ namespace FAIC
             processingLayoutPanel.Controls.Add(processingFastRadio, 0, 0);
             processingLayoutPanel.Controls.Add(processingBestRadio, 1, 0);
             processingLayoutPanel.Dock = DockStyle.Fill;
-            processingLayoutPanel.Location = new Point(100, 335);
+            processingLayoutPanel.Location = new Point(100, 391);
             processingLayoutPanel.Margin = new Padding(2);
             processingLayoutPanel.Name = "processingLayoutPanel";
             processingLayoutPanel.RowCount = 1;
@@ -789,7 +919,6 @@ namespace FAIC
             mainSplit.SplitterDistance = 445;
             mainSplit.SplitterWidth = 3;
             mainSplit.TabIndex = 0;
-            mainSplit.SplitterMoved += mainSplit_SplitterMoved;
             // 
             // videoPanelTable
             // 
@@ -814,7 +943,7 @@ namespace FAIC
             videoContainingPanel.Margin = new Padding(2);
             videoContainingPanel.Name = "videoContainingPanel";
             videoContainingPanel.Padding = new Padding(2);
-            videoContainingPanel.Size = new Size(441, 463);
+            videoContainingPanel.Size = new Size(441, 423);
             videoContainingPanel.TabIndex = 0;
             // 
             // videoPreviewHost
@@ -823,47 +952,44 @@ namespace FAIC
             videoPreviewHost.Location = new Point(2, 2);
             videoPreviewHost.Margin = new Padding(2);
             videoPreviewHost.Name = "videoPreview";
-            videoPreviewHost.Size = new Size(437, 459);
+            videoPreviewHost.Size = new Size(437, 419);
             videoPreviewHost.TabIndex = 0;
             // 
             // previewControlsPanel
             // 
             previewControlsPanel.AutoSize = true;
             previewControlsPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            previewControlsPanel.ColumnCount = 3;
-            previewControlsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30F));
+            previewControlsPanel.ColumnCount = 1;
             previewControlsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            previewControlsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 30F));
-            previewControlsPanel.Controls.Add(trimStartHereButton, 0, 0);
-            previewControlsPanel.Controls.Add(playhead, 1, 0);
-            previewControlsPanel.Controls.Add(trimEndHereButton, 2, 0);
-            previewControlsPanel.Controls.Add(playbackConsoleTable, 1, 1);
+            previewControlsPanel.Controls.Add(cutsControl, 0, 0);
+            previewControlsPanel.Controls.Add(playhead, 0, 1);
+            previewControlsPanel.Controls.Add(playbackConsoleTable, 0, 2);
             previewControlsPanel.Dock = DockStyle.Bottom;
-            previewControlsPanel.Location = new Point(0, 467);
+            previewControlsPanel.Location = new Point(0, 427);
             previewControlsPanel.Margin = new Padding(0);
             previewControlsPanel.Name = "previewControlsPanel";
-            previewControlsPanel.RowCount = 2;
+            previewControlsPanel.RowCount = 3;
             previewControlsPanel.RowStyles.Add(new RowStyle());
             previewControlsPanel.RowStyles.Add(new RowStyle());
-            previewControlsPanel.Size = new Size(445, 57);
+            previewControlsPanel.RowStyles.Add(new RowStyle());
+            previewControlsPanel.Size = new Size(445, 97);
             previewControlsPanel.TabIndex = 1;
             // 
-            // trimStartHereButton
+            // cutsControl
             // 
-            trimStartHereButton.AccessibleName = "Trim start of output to current playhead";
-            trimStartHereButton.AutoSize = true;
-            trimStartHereButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            trimStartHereButton.Dock = DockStyle.Fill;
-            trimStartHereButton.Location = new Point(2, 2);
-            trimStartHereButton.Margin = new Padding(2);
-            trimStartHereButton.Name = "trimStartHereButton";
-            previewControlsPanel.SetRowSpan(trimStartHereButton, 2);
-            trimStartHereButton.Size = new Size(26, 53);
-            trimStartHereButton.TabIndex = 0;
-            trimStartHereButton.Text = "[";
-            tooltips.SetToolTip(trimStartHereButton, "Set \"Start Time\" to current playback position.\r\n");
-            trimStartHereButton.UseVisualStyleBackColor = true;
-            trimStartHereButton.Click += trimStartHereButton_Click;
+            cutsControl.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            cutsControl.AutoScroll = true;
+            cutsControl.AutoScrollMinSize = new Size(0, 32);
+            cutsControl.BackColor = SystemColors.Window;
+            cutsControl.ForeColor = SystemColors.ControlText;
+            cutsControl.Location = new Point(3, 3);
+            cutsControl.MaximumVisibleSegments = 5;
+            cutsControl.Name = "cutsControl";
+            cutsControl.Padding = new Padding(8, 4, 8, 4);
+            cutsControl.SelectedRowBackColor = Color.FromArgb(225, 239, 255);
+            cutsControl.Size = new Size(439, 32);
+            cutsControl.TabIndex = 4;
+            cutsControl.Text = "cutsControl1";
             // 
             // playhead
             // 
@@ -872,53 +998,38 @@ namespace FAIC
             playhead.AutoSize = false;
             playhead.BackColor = SystemColors.Control;
             playhead.LargeChange = 10000;
-            playhead.Location = new Point(32, 2);
+            playhead.Location = new Point(2, 40);
             playhead.Margin = new Padding(2);
             playhead.Maximum = 1000;
             playhead.Name = "playhead";
-            playhead.Size = new Size(381, 24);
+            playhead.Size = new Size(441, 24);
             playhead.SmallChange = 1000;
             playhead.TabIndex = 1;
             playhead.TickFrequency = 1000;
             tooltips.SetToolTip(playhead, "Timeline with playhead to scrub through the media. Playhead freezes during playback.");
             playhead.Scroll += playhead_Scroll;
             // 
-            // trimEndHereButton
-            // 
-            trimEndHereButton.AccessibleName = "Trim end of output to current playhead";
-            trimEndHereButton.AutoSize = true;
-            trimEndHereButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            trimEndHereButton.Dock = DockStyle.Fill;
-            trimEndHereButton.Location = new Point(417, 2);
-            trimEndHereButton.Margin = new Padding(2);
-            trimEndHereButton.Name = "trimEndHereButton";
-            previewControlsPanel.SetRowSpan(trimEndHereButton, 2);
-            trimEndHereButton.Size = new Size(26, 53);
-            trimEndHereButton.TabIndex = 2;
-            trimEndHereButton.Text = "]";
-            tooltips.SetToolTip(trimEndHereButton, "Set \"End Time\" to current playback position.");
-            trimEndHereButton.UseVisualStyleBackColor = true;
-            trimEndHereButton.Click += trimEndHereButton_Click;
-            // 
             // playbackConsoleTable
             // 
             playbackConsoleTable.AutoSize = true;
             playbackConsoleTable.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            playbackConsoleTable.ColumnCount = 3;
-            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3290024F));
+            playbackConsoleTable.ColumnCount = 4;
+            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.329F));
             playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.332F));
             playbackConsoleTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.339F));
+            playbackConsoleTable.ColumnStyles.Add(new ColumnStyle());
             playbackConsoleTable.Controls.Add(reverseSeekButton, 0, 0);
             playbackConsoleTable.Controls.Add(playButton, 1, 0);
             playbackConsoleTable.Controls.Add(seekButton, 2, 0);
+            playbackConsoleTable.Controls.Add(magnetToggleButton, 3, 0);
             playbackConsoleTable.Dock = DockStyle.Fill;
             playbackConsoleTable.GrowStyle = TableLayoutPanelGrowStyle.AddColumns;
-            playbackConsoleTable.Location = new Point(30, 30);
-            playbackConsoleTable.Margin = new Padding(0, 2, 0, 2);
+            playbackConsoleTable.Location = new Point(1, 67);
+            playbackConsoleTable.Margin = new Padding(1);
             playbackConsoleTable.Name = "playbackConsoleTable";
             playbackConsoleTable.RowCount = 1;
             playbackConsoleTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            playbackConsoleTable.Size = new Size(385, 25);
+            playbackConsoleTable.Size = new Size(443, 29);
             playbackConsoleTable.TabIndex = 3;
             // 
             // reverseSeekButton
@@ -927,10 +1038,10 @@ namespace FAIC
             reverseSeekButton.AutoSize = true;
             reverseSeekButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             reverseSeekButton.Dock = DockStyle.Fill;
-            reverseSeekButton.Location = new Point(2, 0);
-            reverseSeekButton.Margin = new Padding(2, 0, 2, 0);
+            reverseSeekButton.Location = new Point(2, 2);
+            reverseSeekButton.Margin = new Padding(2);
             reverseSeekButton.Name = "reverseSeekButton";
-            reverseSeekButton.Size = new Size(124, 25);
+            reverseSeekButton.Size = new Size(134, 25);
             reverseSeekButton.TabIndex = 0;
             reverseSeekButton.Text = "Previous Frame";
             tooltips.SetToolTip(reverseSeekButton, "Go to the previous frame in the media. This may cause the program to freeze for a bit.");
@@ -943,10 +1054,10 @@ namespace FAIC
             playButton.AutoSize = true;
             playButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             playButton.Dock = DockStyle.Fill;
-            playButton.Location = new Point(130, 0);
-            playButton.Margin = new Padding(2, 0, 2, 0);
+            playButton.Location = new Point(140, 2);
+            playButton.Margin = new Padding(2);
             playButton.Name = "playButton";
-            playButton.Size = new Size(124, 25);
+            playButton.Size = new Size(134, 25);
             playButton.TabIndex = 1;
             playButton.Text = "Play";
             tooltips.SetToolTip(playButton, "Start playing the media from the current playhead position.");
@@ -959,15 +1070,25 @@ namespace FAIC
             seekButton.AutoSize = true;
             seekButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             seekButton.Dock = DockStyle.Fill;
-            seekButton.Location = new Point(258, 0);
-            seekButton.Margin = new Padding(2, 0, 2, 0);
+            seekButton.Location = new Point(278, 2);
+            seekButton.Margin = new Padding(2);
             seekButton.Name = "seekButton";
-            seekButton.Size = new Size(125, 25);
+            seekButton.Size = new Size(134, 25);
             seekButton.TabIndex = 2;
             seekButton.Text = "Next Frame";
             tooltips.SetToolTip(seekButton, resources.GetString("seekButton.ToolTip"));
             seekButton.UseVisualStyleBackColor = true;
             seekButton.Click += seekButton_Click;
+            // 
+            // magnetToggleButton
+            // 
+            magnetToggleButton.Location = new Point(416, 2);
+            magnetToggleButton.Margin = new Padding(2);
+            magnetToggleButton.Name = "magnetToggleButton";
+            magnetToggleButton.Size = new Size(24, 24);
+            magnetToggleButton.TabIndex = 3;
+            tooltips.SetToolTip(magnetToggleButton, "Toggles cut and crop snapping. Holding shift also temporarily disables snapping.");
+            magnetToggleButton.UseVisualStyleBackColor = true;
             // 
             // conversionPanel
             // 
@@ -995,11 +1116,11 @@ namespace FAIC
             commandLinePaddingPanel.BackColor = SystemColors.Window;
             commandLinePaddingPanel.Controls.Add(commandLineOutput);
             commandLinePaddingPanel.Dock = DockStyle.Fill;
-            commandLinePaddingPanel.Location = new Point(4, 386);
+            commandLinePaddingPanel.Location = new Point(4, 442);
             commandLinePaddingPanel.Margin = new Padding(2);
             commandLinePaddingPanel.Name = "commandLinePaddingPanel";
             commandLinePaddingPanel.Padding = new Padding(6);
-            commandLinePaddingPanel.Size = new Size(324, 134);
+            commandLinePaddingPanel.Size = new Size(324, 78);
             commandLinePaddingPanel.TabIndex = 1;
             // 
             // actionsPanel
@@ -1042,7 +1163,6 @@ namespace FAIC
             MinimumSize = new Size(512, 512);
             Name = "Main";
             Text = "Fast Animated Image Converter";
-            Load += Main_Load;
             ((System.ComponentModel.ISupportInitialize)qualitySlider).EndInit();
             ((System.ComponentModel.ISupportInitialize)settingsBindingSource).EndInit();
             settingsGroupBox.ResumeLayout(false);
@@ -1050,10 +1170,16 @@ namespace FAIC
             settingsTable.ResumeLayout(false);
             settingsTable.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)resizeSlider).EndInit();
-            resizeDimensionContainer.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)resizeDimensionValue).EndInit();
-            trimColumnLayoutPanel.ResumeLayout(false);
-            trimColumnLayoutPanel.PerformLayout();
+            relativeSizeInputContainer.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)relativeSizeInput).EndInit();
+            cutsColumnLayoutPanel.ResumeLayout(false);
+            cutsColumnLayoutPanel.PerformLayout();
+            cutNumberContainer.ResumeLayout(false);
+            cutNumberContainer.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)cutNumberInput).EndInit();
+            cutsButtonsLayoutPanel.ResumeLayout(false);
+            cutColumnLayoutPanel.ResumeLayout(false);
+            cutColumnLayoutPanel.PerformLayout();
             firstFrameContainer.ResumeLayout(false);
             firstFrameContainer.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)beginningInput).EndInit();
@@ -1105,9 +1231,7 @@ namespace FAIC
         private Panel actionsPanel;
         private TrackBar playhead;
         private ElementHost videoPreviewHost;
-        private Button trimStartHereButton;
-        private Button trimEndHereButton;
-        private Label trimLabel;
+        private Label cutsLabel;
         private Button playButton;
         private Button seekButton;
         private TableLayoutPanel playbackConsoleTable;
@@ -1118,15 +1242,15 @@ namespace FAIC
         private ComboBox fpsSetting;
         private TrackBar resizeSlider;
         private Label resizeLabel;
-        private Label resizeDimensionLabel;
+        private Label relativeSizeLabel;
         private ToolTip tooltips;
         private Label repeatsLabel;
         private Types.Forms.InfinityNumericUpDown repeatValue;
         private TrackBar speedSlider;
         private Label speedLabel;
-        private Label lastFrameLabel;
-        private Label firstFrame;
-        private TableLayoutPanel trimColumnLayoutPanel;
+        private Label endLabel;
+        private Label indexLabel;
+        private TableLayoutPanel cutsColumnLayoutPanel;
         private Label processingModeLabel;
         private TableLayoutPanel processingLayoutPanel;
         private RadioButton processingBestRadio;
@@ -1140,8 +1264,7 @@ namespace FAIC
         private Panel settingsDivider3;
         private TableLayoutPanel previewControlsPanel;
         private TableLayoutPanel videoPanelTable;
-        private NumericUpDown resizeDimensionValue;
-        private Panel resizeDimensionContainer;
+        private Panel relativeSizeInputContainer;
         private Panel firstFrameContainer;
         private Panel lastFrameContainer;
         private Panel fpsContainer;
@@ -1156,5 +1279,16 @@ namespace FAIC
         private TableLayoutPanel masterLayout;
         private Types.Forms.TimeNumericUpDown beginningInput;
         private Types.Forms.TimeNumericUpDown endInput;
+        private TableLayoutPanel cutColumnLayoutPanel;
+        private Label cutLabel;
+        private Label startLabel;
+        private TableLayoutPanel cutsButtonsLayoutPanel;
+        private Button addCutButton;
+        private Button removeCutButton;
+        private Panel cutNumberContainer;
+        private Types.Forms.CutsNumericUpDown cutNumberInput;
+        private Types.Forms.CutsControl cutsControl;
+        private Types.Forms.MagnetToggleButton magnetToggleButton;
+        private Types.SizeRatio relativeSizeInput;
     }
 }

@@ -1,13 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 
 using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Cursor = System.Windows.Input.Cursor;
 using Cursors = System.Windows.Input.Cursors;
+using FlowDirection = System.Windows.FlowDirection;
+using FontFamily = System.Windows.Media.FontFamily;
 using Pen = System.Windows.Media.Pen;
 using Point = System.Windows.Point;
 using SystemColors = System.Windows.SystemColors;
@@ -21,9 +25,147 @@ namespace FAIC.Types.Forms
     /// </summary>
     public sealed class AspectRatioCropOverlay
     {
+        #region Label
+        public string LabelText { get; set; } = "";
+
+        private const double LabelFontSize = 13;
+        private const double LabelHorizontalPadding = 8;
+        private const double LabelVerticalPadding = 4;
+        private const double LabelEdgeMargin = 4;
+        private const double LabelHandleGap = 3;
+
+        private static readonly Typeface LabelTypeface = new(
+            new FontFamily("Segoe UI"),
+            FontStyles.Normal,
+            FontWeights.SemiBold,
+            FontStretches.Normal);
+
+        private static readonly Brush LabelBackgroundBrush =
+            CreateFrozenBrush(Color.FromArgb(210, 0, 0, 0));
+
+        private static readonly Pen LabelOutlinePen =
+            CreateFrozenPen(Color.FromArgb(80, 255, 255, 255), 1);
+
+        private static SolidColorBrush CreateFrozenBrush(Color colour)
+        {
+            SolidColorBrush brush = new(colour);
+            brush.Freeze();
+            return brush;
+        }
+
+        private static Pen CreateFrozenPen(Color colour, double thickness)
+        {
+            Pen pen = new(CreateFrozenBrush(colour), thickness);
+            pen.Freeze();
+            return pen;
+        }
+
+        private void DrawLabel(
+            DrawingContext dc,
+            Rect availableBounds,
+            Rect crop,
+            double handleRadius,
+            double pixelsPerDip)
+        {
+            string text = LabelText?.Trim() ?? string.Empty;
+
+            if (text.Length == 0 || availableBounds.IsEmpty)
+                return;
+
+            double maximumLabelWidth =
+                availableBounds.Width - LabelEdgeMargin * 2;
+
+            double maximumTextWidth =
+                maximumLabelWidth - LabelHorizontalPadding * 2;
+
+            if (maximumTextWidth <= 0)
+                return;
+
+            FlowDirection flowDirection =
+                CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft
+                    ? FlowDirection.RightToLeft
+                    : FlowDirection.LeftToRight;
+
+            FormattedText formattedText = new(
+                text,
+                CultureInfo.CurrentUICulture,
+                flowDirection,
+                LabelTypeface,
+                LabelFontSize,
+                Brushes.White,
+                pixelsPerDip)
+            {
+                MaxTextWidth = maximumTextWidth,
+                MaxLineCount = 1,
+                Trimming = TextTrimming.CharacterEllipsis
+            };
+
+            double textWidth = Math.Min(
+                formattedText.WidthIncludingTrailingWhitespace,
+                maximumTextWidth);
+
+            double labelWidth =
+                Math.Ceiling(textWidth) + LabelHorizontalPadding * 2;
+
+            double labelHeight =
+                Math.Ceiling(formattedText.Height) + LabelVerticalPadding * 2;
+
+            double minimumX = availableBounds.Left + LabelEdgeMargin;
+            double maximumX =
+                availableBounds.Right - LabelEdgeMargin - labelWidth;
+
+            double minimumY = availableBounds.Top + LabelEdgeMargin;
+            double maximumY =
+                availableBounds.Bottom - LabelEdgeMargin - labelHeight;
+
+            if (maximumX < minimumX || maximumY < minimumY)
+                return;
+
+            // Keep clear of the top-middle resize handle.
+            double boundaryClearance =
+                Math.Max(LabelEdgeMargin, handleRadius + LabelHandleGap);
+
+            double outsideY =
+                crop.Top - boundaryClearance - labelHeight;
+
+            bool fitsAboveCrop = outsideY >= minimumY;
+
+            double labelY = fitsAboveCrop
+                ? outsideY
+                : crop.Top + boundaryClearance;
+
+            labelY = Math.Max(minimumY, Math.Min(labelY, maximumY));
+
+            // Centre on the crop, then clamp to the drawable area.
+            double labelX =
+                crop.Left + crop.Width / 2 - labelWidth / 2;
+
+            labelX = Math.Max(minimumX, Math.Min(labelX, maximumX));
+
+            Rect labelBounds = new(
+                labelX,
+                labelY,
+                labelWidth,
+                labelHeight);
+
+            dc.DrawRoundedRectangle(
+                LabelBackgroundBrush,
+                LabelOutlinePen,
+                labelBounds,
+                4,
+                4);
+
+            dc.DrawText(
+                formattedText,
+                new Point(
+                    labelBounds.Left + LabelHorizontalPadding,
+                    labelBounds.Top + LabelVerticalPadding));
+        }
+        #endregion
+
         private static readonly Rect UnitBounds = new(0, 0, 1, 1);
         private readonly Brush shadeBrush = new SolidColorBrush(Color.FromArgb(150, 0, 0, 0));
-        private readonly Pen borderPen = new(SystemColors.HighlightBrush, 1.5);
+        private readonly Pen borderPen = new(new SolidColorBrush(Palette.GetForIndex(0).onDark), 1.5);
 
         private Rect sourceBounds = Rect.Empty;
         private Rect dragBounds;
@@ -63,8 +205,16 @@ namespace FAIC.Types.Forms
             get => selection;
             set => SetSelection(value);
         }
+        public int SelectedCutIndex
+        {
+            set
+            {
+                borderPen.Brush = new SolidColorBrush(Palette.GetForIndex(value).onDark);
+                LabelText = $"Crop for cut #{value + 1}";
+            }
+        }
 
-        public void Draw(DrawingContext dc, Rect bounds)
+        public void Draw(DrawingContext dc, Rect bounds, double pixelsPerDip)
         {
             sourceBounds = bounds.Width > 0 && bounds.Height > 0 ? bounds : Rect.Empty;
             if (!CanInteract)
@@ -90,6 +240,9 @@ namespace FAIC.Types.Forms
             dc.DrawRectangle(null, borderPen, crop);
 
             double radius = Math.Max(0, HandleSize / 2);
+
+            DrawLabel(dc, sourceBounds, crop, radius, pixelsPerDip);
+
             for (int y = -1; y <= 1; y++)
             {
                 for (int x = -1; x <= 1; x++)
@@ -139,7 +292,7 @@ namespace FAIC.Types.Forms
 
             Point pointerUv = ToUv(position, dragBounds);
             ModifierKeys modifiers = Keyboard.Modifiers;
-            bool preserveAspectRatio = (modifiers & (ModifierKeys.Shift | ModifierKeys.Control)) != 0;
+            bool preserveAspectRatio = (modifiers & ModifierKeys.Control) != 0;
             bool resizeFromCenter = (modifiers & ModifierKeys.Alt) != 0;
             SetSelection(direction.LengthSquared == 0
                 ? MoveSelection(pointerUv)
@@ -178,11 +331,11 @@ namespace FAIC.Types.Forms
             Vector delta = pointerUv - dragStartUv;
             double x = Math.Clamp(dragStartSelection.X + delta.X, 0, 1 - dragStartSelection.Width);
             double y = Math.Clamp(dragStartSelection.Y + delta.Y, 0, 1 - dragStartSelection.Height);
-            double snapDistance = Math.Max(0, CenterSnapDistance);
 
-            bool disableSnap = (Keyboard.Modifiers & (ModifierKeys.Shift | ModifierKeys.Control)) != 0;
-            if (!disableSnap)
+            if (Program.SnapEnabled)
             {
+                double snapDistance = Math.Max(0, CenterSnapDistance);
+
                 if (Math.Abs(x + dragStartSelection.Width / 2 - 0.5) * dragBounds.Width <= snapDistance)
                     x = (1 - dragStartSelection.Width) / 2;
                 if (Math.Abs(y + dragStartSelection.Height / 2 - 0.5) * dragBounds.Height <= snapDistance)

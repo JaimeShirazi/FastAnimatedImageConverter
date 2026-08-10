@@ -1,12 +1,17 @@
 using FAIC.Types;
+using FAIC.Types.Cuts;
+using FAIC.Types.Formats;
 using FAIC.Types.Forms;
 using System.IO;
-using System.Windows.Media;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TaskbarClock;
 using static Vortice.MediaFoundation.MediaFactory;
 
 namespace FAIC
 {
+    //TODO & nice-to-haves
+    //- Add right click>copy crop/paste crop
+    //- Playback plays at the speed that the speed slider is set (maybe update "Play" to have in brackets the speed)
+    //- More robust playback (the playhead drag is extremely bad, basically doesn't work)
+
     public partial class Main : Form, IConsole
     {
         public string InputPath
@@ -22,7 +27,6 @@ namespace FAIC
                 {
                     //These will be reenabled once ffprobe can read the media
                     convertButton.Enabled = false;
-                    transparentCheckbox.Enabled = false;
 
                     inputPath = value;
                     if (videoPreview != null)
@@ -51,6 +55,7 @@ namespace FAIC
         private int frameRateLastModeBuffer = 0;
         private VideoPreview videoPreview;
         private ProbeMediaInfo latestInfo;
+        private CutCollection cuts;
         public Main(string inputPath)
         {
             Program.UpdateConsole(this);
@@ -66,6 +71,7 @@ namespace FAIC
             videoPreview.OnNewTime += VideoPreview_OnNewTime;
             videoPreview.OnStateChange += VideoPreview_OnStateChanged;
             videoPreview.OnSupportChange += VideoPreview_OnSupportChange;
+            videoPreview.OnCropRectChanged += VideoPreview_OnCropRectChanged;
 
             UpdatePlayPanelState();
 
@@ -77,108 +83,111 @@ namespace FAIC
 
             fpsSetting.SelectedIndex = 0;
             repeatValue.Value = -1;
+
+            //TODO listen to size visual update
+            relativeSizeInput.OnSizeValueUpdate += RelativeSizeInput_OnSizeValueUpdate;
+
+            cuts = new();
+            cuts.OnNewSelectionOrSize += RefreshSelectedCutUI;
+            cuts.OnNewSelectedValues += RefreshSelectedCutUI;
+
+            cutsControl.Cuts = cuts;
         }
-
-        private void Main_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void firstFrameInput_ValueChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void mainSplit_SplitterMoved(object sender, SplitterEventArgs e)
-        {
-
-        }
-
-        #region Video preview panel
-        #region Playhead management
         private void OnNewVideoInfo(ProbeMediaInfo info)
         {
             latestInfo = info;
-            bool hadInfo = !(info?.IsEmpty() ?? true);
-            settingsGroupBox.Enabled = hadInfo;
-            convertButton.Enabled = hadInfo;
-            if (!hadInfo)
+            settingsGroupBox.Enabled = true;
+            convertButton.Enabled = true;
+            try
             {
-                Program.TryOutput(ConsoleMessageType.Error, "Unable to read media.");
-                AppendLog("");
-                return;
-            }
-            else
-            {
+                bool hadInfo = !(info?.IsEmpty() ?? true);
+                if (!hadInfo) throw new System.NullReferenceException("Could not retrieve info from the input file.");
+                if (info.Length <= 0) throw new System.ArgumentOutOfRangeException("Cannot use media with zero length.");
+
+                if (info.Width.ReadData && info.Height.ReadData)
+                {
+                    relativeSizeInput.SourceWidth = info.Width;
+                    relativeSizeInput.SourceHeight = info.Height;
+                }
+                relativeSizeInput.CropWidthRatio = 1m;
+                relativeSizeInput.CropHeightRatio = 1m;
+                relativeSizeInput.Ratio = 1m;
+
+                transparentCheckbox.Text = InputCodecUtils.GetTarget(info.Codec).SupportsTransparency() ? "Transparent" : "Transparent Bars";
+
+                refreshingCutUI = true;
+                TimeNumericUpDown.IMode targetTrimMode = latestInfo.IsConcat
+                    ? new TimeNumericUpDown.FramesMode((int)(info.Length))
+                    : new TimeNumericUpDown.SecondsMode((decimal)info.Length);
+                Program.NormalizedMinimumCutLength = targetTrimMode.GetMinimumCut() / (decimal)(info.Length);
+
+                beginningInput.SetMode(targetTrimMode, true);
+                endInput.SetMode(targetTrimMode, false);
+                refreshingCutUI = false;
+
+
+                playhead.Value = 0;
+                playhead.Maximum = latestInfo.IsConcat
+                    ? (int)(info.Length - 1)
+                    : (int)(1000 * info.Length);
+
+                playhead.TickFrequency = latestInfo.IsConcat ? 1 : 1000; playhead.SmallChange = playhead.TickFrequency;
+                playhead.LargeChange = latestInfo.IsConcat ? 10 : 10000;
+
+
+                fpsSetting.Items.Clear();
+                fpsSetting.Items.AddRange(latestInfo.IsConcat ? ["Custom"] : new string[] { "Same", "Nearest", "Blended" });
+                fpsSetting.SelectedIndex = 0;
+                fpsSetting.Enabled = !latestInfo.IsConcat;
+
+                speedSlider.Enabled = !latestInfo.IsConcat;
+
+                if (latestInfo.IsConcat)
+                {
+                    fpsValue.Enabled = true;
+                    fpsValue.Minimum = 0.001m;
+                    fpsValue.Maximum = 10000;
+                    fpsValue.Value = 30;
+
+                    speedSlider.Value = DEFAULT_SPEED;
+                }
+                else
+                {
+                    automaticallyChangedFrameRateModeToNearest = false;
+                    frameRateLastModeBuffer = 0;
+                    MatchFrameRateToMedia();
+                    fpsSetting_SelectedIndexChanged(this, default);
+                }
+
+                repeatValue.Value = -1;
+
+                cuts.Reset();
+
                 Program.TryOutput(ConsoleMessageType.System, $"Detected media: {info}");
             }
-            if (info.Width.ReadData && info.Height.ReadData)
+            catch (Exception ex)
             {
-                resizeDimensionLabel.Text = info.Width > info.Height ? "Width" : (info.Width == info.Height ? "Size" : "Height");
-                resizeDimensionValue.Value = Math.Max(info.Width, info.Height);
+                Program.TryOutput(ConsoleMessageType.Error, $"Unable to read media: {ex.Message}");
+#if DEBUG
+                Program.TryOutput(ConsoleMessageType.Error, ex.StackTrace);
+                if (ex.InnerException != null)
+                {
+                    Program.TryOutput(ConsoleMessageType.Error, ex.InnerException.Message);
+                    Program.TryOutput(ConsoleMessageType.Error, ex.InnerException.StackTrace);
+                }
+#endif
+                AppendLog("");
+                settingsGroupBox.Enabled = false;
+                convertButton.Enabled = false;
+                return;
             }
-            resizeSlider.Value = 100;
-
-            transparentCheckbox.Enabled = EncodeSettings.IsFormatTransparencySupported(info.Codec);
-            if (!transparentCheckbox.Enabled) transparentCheckbox.Checked = false;
-
-            #region Concat handling
-            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
-            {
-                playhead.Value = 0;
-                int maxLength = latestInfo.ConcatData.orderedFrames.Count - 1;
-                playhead.Maximum = maxLength;
-                playhead.TickFrequency = 1;
-                playhead.SmallChange = 1;
-                playhead.LargeChange = 10;
-                TimeNumericUpDown.IMode targetTrimMode = new TimeNumericUpDown.FramesMode(maxLength);
-                beginningInput.Current = targetTrimMode;
-                endInput.Current = targetTrimMode;
-                endInput.Value = maxLength;
-                fpsSetting.Items.Clear();
-                fpsSetting.Items.Add("Custom");
-                fpsSetting.SelectedIndex = 0;
-                fpsSetting.Enabled = false;
-                fpsValue.Enabled = true;
-                fpsValue.Minimum = 0.001m;
-                fpsValue.Maximum = 10000;
-                fpsValue.Value = 30;
-                speedSlider.Value = DEFAULT_SPEED;
-                speedSlider.Enabled = false;
-            }
-            else
-            {
-                playhead.Value = 0;
-                decimal maxLength = Math.Round((decimal)info.Length, 3);
-                playhead.Maximum = (int)(1000 * info.Length);
-                playhead.TickFrequency = 1000;
-                playhead.SmallChange = 1000;
-                playhead.LargeChange = 10000;
-                TimeNumericUpDown.IMode targetTrimMode = new TimeNumericUpDown.SecondsMode(maxLength);
-                beginningInput.Current = targetTrimMode;
-                endInput.Current = targetTrimMode;
-                endInput.Value = maxLength;
-                fpsSetting.Items.Clear();
-                fpsSetting.Items.Add("Same");
-                fpsSetting.Items.Add("Nearest");
-                fpsSetting.Items.Add("Blended");
-                fpsSetting.SelectedIndex = 0;
-                fpsSetting.Enabled = true;
-                automaticallyChangedFrameRateModeToNearest = false;
-                frameRateLastModeBuffer = 0;
-                MatchFrameRateToMedia();
-                fpsSetting_SelectedIndexChanged(this, default);
-                speedSlider.Enabled = true;
-            }
-            #endregion
-            beginningInput.Value = 0;
-
-            repeatValue.Value = -1;
         }
+        #region Video preview panel
+        #region Playhead management
         private void VideoPreview_OnNewTime(double time)
         {
             int target;
-            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            if (latestInfo.IsConcat)
             {
                 target = (int)Math.Round(time);
             }
@@ -188,11 +197,14 @@ namespace FAIC
             }
             target = Math.Clamp(target, playhead.Minimum, playhead.Maximum);
             playhead.Value = target;
+            decimal latestTimeNormalized = (decimal)time / (decimal)latestInfo.Length;
+            cuts.OnPlayheadMoved(latestTimeNormalized);
+            cutsControl.PlayheadPosition = latestTimeNormalized; //seems redundant
         }
         private void playhead_Scroll(object sender, EventArgs e)
         {
             double t;
-            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            if (latestInfo.IsConcat)
             {
                 t = playhead.Value;
             }
@@ -230,8 +242,6 @@ namespace FAIC
             bool seekEnabled = videoPreview.SourceReaderSupported || videoPreview.ImageSequenceSupported;
             seekButton.Enabled = seekEnabled;
             reverseSeekButton.Enabled = seekEnabled;
-            trimStartHereButton.Enabled = videoPreview.CanReadMedia;
-            trimEndHereButton.Enabled = videoPreview.CanReadMedia;
             if (videoPreview.MediaPlayerSupported)
             {
                 if (videoPreview.IsPlaying)
@@ -266,28 +276,6 @@ namespace FAIC
         {
             UpdatePlayPanelState();
         }
-        private void trimStartHereButton_Click(object sender, EventArgs e)
-        {
-            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
-            {
-                beginningInput.Value = (int)Math.Round(videoPreview.Time);
-            }
-            else
-            {
-                beginningInput.Value = Math.Round((decimal)videoPreview.Time, 3);
-            }
-        }
-        private void trimEndHereButton_Click(object sender, EventArgs e)
-        {
-            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
-            {
-                endInput.Value = (int)Math.Round(videoPreview.Time);
-            }
-            else
-            {
-                endInput.Value = Math.Round((decimal)videoPreview.Time, 3);
-            }
-        }
         #endregion
         #region Settings and console panel
         #region Quality setting
@@ -302,45 +290,25 @@ namespace FAIC
         #endregion
         #region Size setting
         private bool isResizeUpdate = false;
-        private bool IsMediaWidthLarger() => videoPreview.Latest != null ? videoPreview.Latest.Width > videoPreview.Latest.Height : true;
-        private int GetMediaLargestDimension() => videoPreview.Latest != null ? Math.Max(videoPreview.Latest.Width, videoPreview.Latest.Height) : 0;
-        private int GetMediaSmallestDimension() => videoPreview.Latest != null ? Math.Min(videoPreview.Latest.Width, videoPreview.Latest.Height) : 0;
         private void resizeSlider_Scroll(object sender, EventArgs e)
         {
-            if (isResizeUpdate) return; isResizeUpdate = true;
+            if (isResizeUpdate) return;
 
-            int largestDimension = GetMediaLargestDimension();
-            resizeDimensionValue.Value = Math.Clamp(
-                Math.Round(largestDimension * (resizeSlider.Value / (decimal)100)),
-                resizeDimensionValue.Minimum,
-                resizeDimensionValue.Maximum
-                );
-
-            OnResizeChange();
-
-            isResizeUpdate = false;
+            relativeSizeInput.Ratio = resizeSlider.Value / 100m;
         }
-        private void resizeDimensionValue_ValueChanged(object sender, EventArgs e)
+        private void RelativeSizeInput_OnSizeValueUpdate()
         {
-            if (isResizeUpdate) return; isResizeUpdate = true;
+            if (isResizeUpdate) return;
+
+            isResizeUpdate = true;
 
             resizeSlider.Value = (int)Math.Clamp(
-                Math.Round((resizeDimensionValue.Value / GetMediaLargestDimension()) * 100),
+                relativeSizeInput.Ratio * 100,
                 resizeSlider.Minimum,
                 resizeSlider.Maximum
                 );
 
-            OnResizeChange();
-
-            isResizeUpdate = false;
-        }
-        private void OnResizeChange()
-        {
-            decimal percentageSize = Math.Max(
-                (resizeDimensionValue.Value / GetMediaLargestDimension()) * (decimal)100.0,
-                (decimal)0.01
-                );
-
+            decimal percentageSize = Math.Max(relativeSizeInput.Ratio * 100, 0.01m);
             string formattedPercentage = percentageSize switch
             {
                 < 10 => percentageSize.ToString("0.00"),
@@ -348,8 +316,9 @@ namespace FAIC
                 < 1000 => percentageSize.ToString("0"),
                 _ => ">999"
             };
-
             resizeLabel.Text = $"Resize ({formattedPercentage}%)";
+
+            isResizeUpdate = false;
         }
         #endregion
         #region Speed setting
@@ -360,8 +329,7 @@ namespace FAIC
         private const int DEFAULT_SPEED = 5;
         private void speedSlider_Scroll(object sender, EventArgs e)
         {
-            bool isConcat = latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase);
-            if (!isConcat
+            if (!latestInfo.IsConcat
                 && (!automaticallyChangedFrameRateModeToNearest
                 && fpsSetting.SelectedIndex == 0))
             {
@@ -370,10 +338,49 @@ namespace FAIC
                 MatchFrameRateToMedia(factorSpeed: false);
             }
             speedLabel.Text = $"Speed ({Math.Round(Speeds[speedSlider.Value], 2)}x)";
-            if (!isConcat && fpsSetting.SelectedIndex == 0)
+            if (!latestInfo.IsConcat && fpsSetting.SelectedIndex == 0)
             {
                 MatchFrameRateToMedia();
             }
+        }
+        #endregion
+        #region Cuts setting
+        private void cutNumberInput_ValueChanged(object sender, EventArgs e)
+        {
+            if (refreshingCutUI) return;
+
+            int zeroBasedIndex = (int)cutNumberInput.Value - 1;
+
+            if (cuts.Selected != zeroBasedIndex)
+                cuts.OnNewSelectedValue(zeroBasedIndex);
+        }
+        private void addCutButton_Click(object sender, EventArgs e)
+        {
+            decimal normalisedTime = latestInfo.IsConcat
+                ? playhead.Value / (decimal)latestInfo.Length
+                : (playhead.Value - playhead.Minimum) / (decimal)(playhead.Maximum - playhead.Minimum);
+
+            cuts.AddButton(normalisedTime);
+        }
+        private void removeCutButton_Click(object sender, EventArgs e)
+        {
+            cuts.RemoveButton();
+        }
+        private void beginningInput_ValueChanged(object sender, EventArgs e)
+        {
+            if (refreshingCutUI) return;
+
+            Cut current = cuts[cuts.Selected];
+            current.Start = beginningInput.NormalizedValue ?? current.Start;
+            cuts[cuts.Selected] = current;
+        }
+        private void endInput_ValueChanged(object sender, EventArgs e)
+        {
+            if (refreshingCutUI) return;
+
+            Cut current = cuts[cuts.Selected];
+            current.End = endInput.NormalizedValue ?? current.End;
+            cuts[cuts.Selected] = current;
         }
         #endregion
         #region Frame rate setting
@@ -381,7 +388,7 @@ namespace FAIC
         private decimal GetSourceMediaFrameRate() => videoPreview.Latest != null ? (decimal)videoPreview.Latest.EstimatedFrameRate : 0;
         private void MatchFrameRateToMedia(bool factorSpeed = true)
         {
-            if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase)) return;
+            if (latestInfo.IsConcat) return;
 
             decimal roundedFPS = Math.Round(GetSourceMediaFrameRate() * (factorSpeed ? (decimal)Speeds[speedSlider.Value] : 1), FRAME_RATE_PRECISION);
             if (fpsValue.Enabled)
@@ -444,6 +451,72 @@ namespace FAIC
             }
         }
         #endregion
+        #endregion
+        #region Cuts management
+        private bool refreshingCutUI;
+        private void RefreshSelectedCutUI()
+        {
+            Cut cut = cuts[cuts.Selected];
+            decimal timelineLength = (decimal)latestInfo.Length;
+
+            refreshingCutUI = true;
+            try
+            {
+                cutNumberInput.Value = 1;
+                cutNumberInput.Minimum = 1m;
+                cutNumberInput.Maximum = Math.Max(1, cuts.Total);
+
+                decimal displayedCutNumber = cuts.Selected + 1m;
+                if (cutNumberInput.Value != displayedCutNumber)
+                {
+                    cutNumberInput.Value = displayedCutNumber;
+                }
+
+                //Maximum change won't update the text display, but text includes maximum
+                cutNumberInput.ForceUpdateEditText();
+
+                decimal displayedStart = cut.Start * timelineLength;
+                decimal displayedEnd = cut.End * timelineLength;
+
+                if (beginningInput.IsSetup)
+                    beginningInput.SetNew(displayedStart, true, displayedEnd);
+                if (endInput.IsSetup)
+                    endInput.SetNew(displayedEnd, false, displayedStart);
+
+                videoPreview.NormalizedCropRect = cut.NormalizedCrop;
+                videoPreview.SelectedCutIndex = cuts.Selected;
+            }
+            finally
+            {
+                refreshingCutUI = false;
+            }
+
+            string addMethod = cuts.ShouldSelectedSplitNotAdd() ? "Split" : "After";
+            addCutButton.Text = $"Add ({addMethod})";
+            removeCutButton.Enabled = cuts.Total > 1;
+        }
+        private (double maxWidthCrop, double maxHeightCrop) GetMaxCrops()
+        {
+            double maxWidthCrop = 0, maxHeightCrop = 0;
+            for (int i = 0; i < cuts.Total; i++)
+            {
+                maxWidthCrop = Math.Max(maxWidthCrop, cuts[i].NormalizedCrop.Width);
+                maxHeightCrop = Math.Max(maxHeightCrop, cuts[i].NormalizedCrop.Height);
+            }
+            return (maxWidthCrop, maxHeightCrop);
+        }
+        private void VideoPreview_OnCropRectChanged(System.Windows.Rect crop)
+        {
+            if (refreshingCutUI) return;
+
+            Cut current = cuts[cuts.Selected];
+            current.NormalizedCrop = crop;
+            cuts[cuts.Selected] = current;
+
+            var crops = GetMaxCrops();
+            relativeSizeInput.CropWidthRatio = (decimal)crops.maxWidthCrop;
+            relativeSizeInput.CropHeightRatio = (decimal)crops.maxHeightCrop;
+        }
         #endregion
         #region Encoding
         private void convertButton_Click(object sender, EventArgs e)
@@ -509,55 +582,24 @@ namespace FAIC
 
             try
             {
-                int smallestDimension = (int)Math.Round(GetMediaSmallestDimension() * (resizeDimensionValue.Value / GetMediaLargestDimension()));
-                bool widthLarger = IsMediaWidthLarger();
-                int width = widthLarger ? (int)resizeDimensionValue.Value : smallestDimension;
-                int height = widthLarger ? smallestDimension : (int)resizeDimensionValue.Value;
-
-                decimal start = 0, end = 0;
-                if (latestInfo.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
-                {
-                    //TODO
-                    MessageBox.Show("Support not yet implemented");
-                }
-                else
-                {
-                    start = beginningInput.Value;
-                    end = endInput.Value;
-                }
-
-                EncodeSettings settings = new EncodeSettings((int)resizeDimensionValue.Value, GetMediaLargestDimension(), processingFastRadio.Checked, processingBestRadio.Checked)
-                {
-                    InputPath = inputPath,
-                    InputFormat = latestInfo?.Codec ?? "",
-                    OutputPath = outputPath,
-                    OutputFormat = extension switch
+                EncodeSettings settings = new EncodeSettings(cuts, latestInfo,
+                    OutputCodecUtils.GetTarget(outputPath),
+                    relativeSizeInput.EffectiveWidth, relativeSizeInput.EffectiveHeight,
+                    processingFastRadio.Checked ? EncodeSettings.TuningSetting.Fast : EncodeSettings.TuningSetting.Best,
+                    transparentCheckbox.Checked,
+                    Speeds[speedSlider.Value], fpsValue.Value, fpsSetting.SelectedIndex switch
                     {
-                        "avif" => ConvertJobTarget.AVIF,
-                        "gif" => ConvertJobTarget.GIF,
-                        "jxl" => ConvertJobTarget.JXL,
-                        "apng" or "png" => ConvertJobTarget.APNG,
-                        "webp" => ConvertJobTarget.WEBP,
-                        _ => throw new System.NotImplementedException($"Unrecognised target extension \"{extension}\"")
-                    },
-                    Quality = qualitySlider.Value,
-                    Start = start,
-                    End = end,
-                    Width = width,
-                    Height = height,
-                    Speed = Speeds[speedSlider.Value],
-                    TargetFrameRate = fpsValue.Value,
-                    Interpolate = fpsSetting.SelectedIndex switch
-                    {
-                        0 => EncodeSettings.InterpolateSetting.None,
+                        0 => EncodeSettings.InterpolateSetting.Nearest,
                         1 => EncodeSettings.InterpolateSetting.Nearest,
                         2 => EncodeSettings.InterpolateSetting.Blended,
                         _ => throw new System.NotImplementedException($"Unrecognised FPS setting target option number ({fpsSetting.SelectedIndex})")
-                    },
+                    })
+                {
+                    InputPath = inputPath,
+                    OutputPath = outputPath,
+                    Quality = qualitySlider.Value,
                     Repeats = (int)repeatValue.Value < 0 ? -1 : (int)repeatValue.Value,
-                    Transparent = transparentCheckbox.Checked,
-                    onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null,
-                    isConcat = latestInfo.Format.Value.Equals("concat", StringComparison.CurrentCultureIgnoreCase)
+                    onBeforeArguments = editArgumentsCheckbox.Checked ? DoArgumentsWindow : null
                 };
 
                 ConversionWindow conversion = new ConversionWindow(settings);

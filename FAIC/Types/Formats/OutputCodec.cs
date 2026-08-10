@@ -6,9 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FAIC.Types
+namespace FAIC.Types.Formats
 {
-    public enum ConvertJobTarget
+    public enum OutputCodec
     {
         AVIF,
         JXL,
@@ -16,9 +16,9 @@ namespace FAIC.Types
         APNG,
         GIF
     }
-    public static class ConvertJobTargetUtils
+    public static class OutputCodecUtils
     {
-        public static ConvertJobTarget GetTarget(string path)
+        public static OutputCodec GetTarget(string path)
         {
             string extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
 
@@ -27,17 +27,18 @@ namespace FAIC.Types
                 case "avif":
                 default:
                     if (extension != "avif") Program.TryOutput("Error: Unrecognised extension. Outputting as AVIF.");
-                    return ConvertJobTarget.AVIF;
+                    return OutputCodec.AVIF;
                 case "gif":
-                    return ConvertJobTarget.GIF;
+                    return OutputCodec.GIF;
                 case "jxl":
-                    return ConvertJobTarget.JXL;
+                    return OutputCodec.JXL;
                 case "apng":
                 case "png":
-                    return ConvertJobTarget.APNG;
+                    return OutputCodec.APNG;
                 case "webp":
-                    return ConvertJobTarget.WEBP;
+                    return OutputCodec.WEBP;
             }
         }
+        public static bool SupportsTransparency(this OutputCodec _) => true; //currently, all formats support transparency
     }
 }

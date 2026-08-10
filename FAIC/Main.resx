@@ -130,17 +130,18 @@ For lossless export (i.e. APNG) this actually corresponds to compression level, 
   <metadata name="saveFileDialogue.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>218, 17</value>
   </metadata>
+  <data name="relativeSizeInput.ToolTip" xml:space="preserve">
+    <value>The desired output resolution in pixels.
+You can edit either axis, and the other axis will scale to match aspect ratio.
+This value takes into account the crop of the currently selected cut.
+You may also enter percentages directly.</value>
+  </data>
   <data name="fpsSetting.ToolTip" xml:space="preserve">
     <value>Frame rate mode.
 Same: do not change the frame rate.
 Nearest: use a new constant frame rate, using the closest frame in the source media to each output frame.
 Blended: use a new constant frame rate, blending between the nearest frames in the source media to each output frame.
 If the new frame rate has more than 2 source media frames per output frame, Blended will only blend the 2 closest frames.</value>
-  </data>
-  <data name="repeatValue.ToolTip" xml:space="preserve">
-    <value>How many times after the first play that the animation should repeat.
-Default is ∞ (-1), which will keep playing indefinitely.
-Type anything other than a whole number between 0 and 65535 or decrement below 0 to set to ∞.</value>
   </data>
   <metadata name="videoPreviewHost.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>

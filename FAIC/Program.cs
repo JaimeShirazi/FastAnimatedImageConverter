@@ -36,6 +36,10 @@ namespace FAIC
         private static IConsole latest;
         public static void UpdateConsole(IConsole console) => latest = console;
 
+        public static decimal NormalizedMinimumCutLength = 0.001m;
+
+        public static bool SnapEnabled = true;
+
         /// <summary>
         ///  The main entry point for the application.
         /// </summary>

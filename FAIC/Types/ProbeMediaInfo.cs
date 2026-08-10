@@ -21,7 +21,9 @@ namespace FAIC.Types
             }
             return true;
         }
-        public double Length => StreamLength.ReadData ? StreamLength : (FormatLength.ReadData ? FormatLength : StreamTagLength.Value);
+        public double Length => isConcat
+            ? ConcatData.orderedFrames.Count
+            : (StreamLength.ReadData ? StreamLength : (FormatLength.ReadData ? FormatLength : StreamTagLength.Value));
         /// <summary>
         /// Best-guess FPS for this media. Negative when no valid FPS was found.
         /// </summary>
@@ -40,6 +42,12 @@ namespace FAIC.Types
         public StringStreamData Format = new(key: "format_name");
         public ParsedStreamData<FormattedDuration> StreamTagLength = new(key: "DURATION");
 
+        private bool isConcat = false;
+        public bool IsConcat
+        {
+            get => isConcat;
+            private set => isConcat = value;
+        }
         public FolderImporter.Result ConcatData => concatData;
         private FolderImporter.Result concatData;
 
@@ -117,20 +125,23 @@ namespace FAIC.Types
                 }
             }
 
-            if (Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            if (Format.ReadData
+                && Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
             {
+                IsConcat = true;
                 if (!FolderImporter.Result.TryReadFrom(inputPath, out concatData))
                 {
                     Format.Value = "unknown";
                 }
             }
+            else IsConcat = false;
         }
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
             string lengthStatus = "unknown length";
             string fpsStatus = "unknown frame rate";
-            if (Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+            if (IsConcat)
             {
                 lengthStatus = $"{concatData.orderedFrames.Count} frames";
                 fpsStatus = "unspecified frame rate";

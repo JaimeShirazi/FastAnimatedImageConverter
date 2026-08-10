@@ -1,10 +1,7 @@
-﻿using SharpGen.Runtime;
-using System.Drawing;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Vortice.MediaFoundation;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 namespace FAIC.Types.Forms
@@ -26,6 +23,17 @@ namespace FAIC.Types.Forms
         {
             get => cropOverlay.NormalizedSelection;
             set => cropOverlay.NormalizedSelection = value;
+        }
+        /// <summary>
+        /// Used to determine crop colour
+        /// </summary>
+        public int SelectedCutIndex
+        {
+            set
+            {
+                cropOverlay.SelectedCutIndex = value;
+                InvalidateVisual();
+            }
         }
 
         public bool IsCropOverlayVisible
@@ -167,7 +175,7 @@ namespace FAIC.Types.Forms
                     break;
             }
 
-            cropOverlay.Draw(dc, displayedSource);
+            cropOverlay.Draw(dc, displayedSource, VisualTreeHelper.GetDpi(this).PixelsPerDip);
         }
         private Rect GetOutputRect(double sourceWidth, double sourceHeight)
         {
@@ -269,7 +277,7 @@ namespace FAIC.Types.Forms
                 else
                 {
                     latest = info;
-                    if (info.Format.Value.Equals("concat", StringComparison.OrdinalIgnoreCase))
+                    if (info.IsConcat)
                     {
                         MediaPlayerSupported = false;
                         sourceReader.Open("");
