@@ -1,0 +1,10 @@
+ffconcat version 1.0
+file 'frame_000.hdr'
+duration 0.250
+file 'frame_001.hdr'
+duration 0.250
+file 'frame_002.hdr'
+duration 0.250
+file 'frame_003.hdr'
+duration 0.250
+file 'frame_003.hdr'

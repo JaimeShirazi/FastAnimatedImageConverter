@@ -40,6 +40,10 @@ namespace FAIC.Types
         public ParsedStreamData<int> Height = new(key: "height");
         public StringStreamData Codec = new(key: "codec_name");
         public StringStreamData Format = new(key: "format_name");
+        public StringStreamData ColorSpace = new(key: "color_space");
+        public StringStreamData ColorPrimaries = new(key: "color_primaries");
+        public StringStreamData ColorTransfer = new(key: "color_transfer");
+        public StringStreamData ColorRange = new(key: "color_range");
         public ParsedStreamData<FormattedDuration> StreamTagLength = new(key: "DURATION");
 
         private bool isConcat = false;
@@ -79,6 +83,10 @@ namespace FAIC.Types
             yield return Width;
             yield return Height;
             yield return Codec;
+            yield return ColorSpace;
+            yield return ColorPrimaries;
+            yield return ColorTransfer;
+            yield return ColorRange;
         }
         public IEnumerable<BaseStreamData> GetAllStreamTagData()
         {
@@ -164,7 +172,7 @@ namespace FAIC.Types
                 }
             }
             
-            return $"({lengthStatus}, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {Codec.Value} encoding in {Format.Value} format)";
+            return $"({lengthStatus}, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {Codec.Value} encoding in {Format.Value} format. Color space: {ColorSpace.Value}, Color primaries: {ColorPrimaries.Value}, Color transfer: {ColorTransfer.Value}, Color range: {ColorRange.Value}.)";
         }
         public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
     }

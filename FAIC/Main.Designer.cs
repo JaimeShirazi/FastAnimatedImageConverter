@@ -74,7 +74,9 @@ namespace FAIC
             fpsValue = new NumericUpDown();
             settingsDivider3 = new Panel();
             formatLabel = new Label();
+            formatCheckboxLayoutPanel = new TableLayoutPanel();
             transparentCheckbox = new CheckBox();
+            hdrCheckbox = new CheckBox();
             repeatsLabel = new Label();
             repeatContainer = new Panel();
             repeatValue = new FAIC.Types.Forms.InfinityNumericUpDown();
@@ -122,6 +124,7 @@ namespace FAIC
             fpsColumnLayoutPanel.SuspendLayout();
             fpsContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)fpsValue).BeginInit();
+            formatCheckboxLayoutPanel.SuspendLayout();
             repeatContainer.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)repeatValue).BeginInit();
             processingLayoutPanel.SuspendLayout();
@@ -206,7 +209,7 @@ namespace FAIC
             commandLineOutput.Margin = new Padding(2);
             commandLineOutput.Name = "commandLineOutput";
             commandLineOutput.ReadOnly = true;
-            commandLineOutput.Size = new Size(312, 66);
+            commandLineOutput.Size = new Size(312, 70);
             commandLineOutput.TabIndex = 0;
             commandLineOutput.Text = "";
             tooltips.SetToolTip(commandLineOutput, "Console output from the converter tools.");
@@ -222,7 +225,7 @@ namespace FAIC
             settingsGroupBox.Margin = new Padding(2, 2, 2, 0);
             settingsGroupBox.Name = "settingsGroupBox";
             settingsGroupBox.Padding = new Padding(2);
-            settingsGroupBox.Size = new Size(324, 436);
+            settingsGroupBox.Size = new Size(324, 432);
             settingsGroupBox.TabIndex = 0;
             settingsGroupBox.TabStop = false;
             settingsGroupBox.Text = "Settings";
@@ -257,7 +260,7 @@ namespace FAIC
             settingsTable.Controls.Add(fpsContainer, 1, 11);
             settingsTable.Controls.Add(settingsDivider3, 0, 12);
             settingsTable.Controls.Add(formatLabel, 0, 13);
-            settingsTable.Controls.Add(transparentCheckbox, 1, 13);
+            settingsTable.Controls.Add(formatCheckboxLayoutPanel, 1, 13);
             settingsTable.Controls.Add(repeatsLabel, 0, 14);
             settingsTable.Controls.Add(repeatContainer, 1, 14);
             settingsTable.Controls.Add(settingsDivider4, 0, 15);
@@ -288,7 +291,7 @@ namespace FAIC
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
             settingsTable.RowStyles.Add(new RowStyle());
-            settingsTable.Size = new Size(320, 416);
+            settingsTable.Size = new Size(320, 412);
             settingsTable.TabIndex = 0;
             // 
             // resizeLabel
@@ -753,19 +756,48 @@ namespace FAIC
             formatLabel.Text = "Format";
             formatLabel.TextAlign = ContentAlignment.MiddleLeft;
             // 
+            // formatCheckboxLayoutPanel
+            // 
+            formatCheckboxLayoutPanel.AutoSize = true;
+            formatCheckboxLayoutPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            formatCheckboxLayoutPanel.ColumnCount = 2;
+            formatCheckboxLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            formatCheckboxLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            formatCheckboxLayoutPanel.Controls.Add(transparentCheckbox, 0, 0);
+            formatCheckboxLayoutPanel.Controls.Add(hdrCheckbox, 1, 0);
+            formatCheckboxLayoutPanel.Dock = DockStyle.Fill;
+            formatCheckboxLayoutPanel.Location = new Point(98, 302);
+            formatCheckboxLayoutPanel.Margin = new Padding(0);
+            formatCheckboxLayoutPanel.Name = "formatCheckboxLayoutPanel";
+            formatCheckboxLayoutPanel.RowCount = 1;
+            formatCheckboxLayoutPanel.RowStyles.Add(new RowStyle());
+            formatCheckboxLayoutPanel.Size = new Size(222, 23);
+            formatCheckboxLayoutPanel.TabIndex = 34;
+            // 
             // transparentCheckbox
             // 
             transparentCheckbox.AutoSize = true;
             transparentCheckbox.Checked = true;
             transparentCheckbox.CheckState = CheckState.Checked;
-            transparentCheckbox.Dock = DockStyle.Fill;
-            transparentCheckbox.Location = new Point(100, 304);
+            transparentCheckbox.Location = new Point(2, 2);
             transparentCheckbox.Margin = new Padding(2);
             transparentCheckbox.Name = "transparentCheckbox";
-            transparentCheckbox.Size = new Size(218, 19);
+            transparentCheckbox.Size = new Size(88, 19);
             transparentCheckbox.TabIndex = 24;
             transparentCheckbox.Text = "Transparent";
             transparentCheckbox.UseVisualStyleBackColor = true;
+            // 
+            // hdrCheckbox
+            // 
+            hdrCheckbox.AutoSize = true;
+            hdrCheckbox.Location = new Point(113, 2);
+            hdrCheckbox.Margin = new Padding(2);
+            hdrCheckbox.Name = "hdrCheckbox";
+            hdrCheckbox.Size = new Size(50, 19);
+            hdrCheckbox.TabIndex = 25;
+            hdrCheckbox.Text = "HDR";
+            tooltips.SetToolTip(hdrCheckbox, "Enables HDR output when supported.\r\nEnabling this flag for non-HDR media is not recommended.");
+            hdrCheckbox.UseVisualStyleBackColor = true;
             // 
             // repeatsLabel
             // 
@@ -848,7 +880,7 @@ namespace FAIC
             processingModeLabel.Margin = new Padding(2, 0, 2, 0);
             processingModeLabel.MinimumSize = new Size(45, 0);
             processingModeLabel.Name = "processingModeLabel";
-            processingModeLabel.Size = new Size(94, 27);
+            processingModeLabel.Size = new Size(94, 23);
             processingModeLabel.TabIndex = 6;
             processingModeLabel.Text = "Tuning";
             processingModeLabel.TextAlign = ContentAlignment.MiddleRight;
@@ -862,13 +894,13 @@ namespace FAIC
             processingLayoutPanel.Controls.Add(processingFastRadio, 0, 0);
             processingLayoutPanel.Controls.Add(processingBestRadio, 1, 0);
             processingLayoutPanel.Dock = DockStyle.Fill;
-            processingLayoutPanel.Location = new Point(100, 391);
-            processingLayoutPanel.Margin = new Padding(2);
+            processingLayoutPanel.Location = new Point(98, 389);
+            processingLayoutPanel.Margin = new Padding(0);
             processingLayoutPanel.Name = "processingLayoutPanel";
             processingLayoutPanel.RowCount = 1;
             processingLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             processingLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-            processingLayoutPanel.Size = new Size(218, 23);
+            processingLayoutPanel.Size = new Size(222, 23);
             processingLayoutPanel.TabIndex = 7;
             // 
             // processingFastRadio
@@ -890,7 +922,7 @@ namespace FAIC
             // 
             processingBestRadio.AccessibleName = "Best resampling algorithm button";
             processingBestRadio.AutoSize = true;
-            processingBestRadio.Location = new Point(111, 2);
+            processingBestRadio.Location = new Point(113, 2);
             processingBestRadio.Margin = new Padding(2);
             processingBestRadio.Name = "processingBestRadio";
             processingBestRadio.Size = new Size(47, 19);
@@ -1116,11 +1148,11 @@ namespace FAIC
             commandLinePaddingPanel.BackColor = SystemColors.Window;
             commandLinePaddingPanel.Controls.Add(commandLineOutput);
             commandLinePaddingPanel.Dock = DockStyle.Fill;
-            commandLinePaddingPanel.Location = new Point(4, 442);
+            commandLinePaddingPanel.Location = new Point(4, 438);
             commandLinePaddingPanel.Margin = new Padding(2);
             commandLinePaddingPanel.Name = "commandLinePaddingPanel";
             commandLinePaddingPanel.Padding = new Padding(6);
-            commandLinePaddingPanel.Size = new Size(324, 78);
+            commandLinePaddingPanel.Size = new Size(324, 82);
             commandLinePaddingPanel.TabIndex = 1;
             // 
             // actionsPanel
@@ -1192,6 +1224,8 @@ namespace FAIC
             fpsContainer.ResumeLayout(false);
             fpsContainer.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)fpsValue).EndInit();
+            formatCheckboxLayoutPanel.ResumeLayout(false);
+            formatCheckboxLayoutPanel.PerformLayout();
             repeatContainer.ResumeLayout(false);
             repeatContainer.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)repeatValue).EndInit();
@@ -1290,5 +1324,7 @@ namespace FAIC
         private Types.Forms.CutsControl cutsControl;
         private Types.Forms.MagnetToggleButton magnetToggleButton;
         private Types.SizeRatio relativeSizeInput;
+        private TableLayoutPanel formatCheckboxLayoutPanel;
+        private CheckBox hdrCheckbox;
     }
 }

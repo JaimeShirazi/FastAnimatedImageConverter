@@ -1,0 +1,10 @@
+ffconcat version 1.0
+file 'frame_000.pam'
+duration 0.250
+file 'frame_001.pam'
+duration 0.250
+file 'frame_002.pam'
+duration 0.250
+file 'frame_003.pam'
+duration 0.250
+file 'frame_003.pam'

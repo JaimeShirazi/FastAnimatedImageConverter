@@ -1,0 +1,10 @@
+ffconcat version 1.0
+file 'frame_000.exr'
+duration 0.125
+file 'frame_001.exr'
+duration 0.250
+file 'frame_002.exr'
+duration 0.500
+file 'frame_003.exr'
+duration 0.125
+file 'frame_003.exr'

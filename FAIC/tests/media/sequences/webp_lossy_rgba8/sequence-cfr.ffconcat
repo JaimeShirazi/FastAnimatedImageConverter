@@ -1,0 +1,10 @@
+ffconcat version 1.0
+file 'frame_000.webp'
+duration 0.250
+file 'frame_001.webp'
+duration 0.250
+file 'frame_002.webp'
+duration 0.250
+file 'frame_003.webp'
+duration 0.250
+file 'frame_003.webp'

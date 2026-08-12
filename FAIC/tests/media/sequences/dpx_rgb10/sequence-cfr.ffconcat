@@ -1,0 +1,10 @@
+ffconcat version 1.0
+file 'frame_000.dpx'
+duration 0.250
+file 'frame_001.dpx'
+duration 0.250
+file 'frame_002.dpx'
+duration 0.250
+file 'frame_003.dpx'
+duration 0.250
+file 'frame_003.dpx'

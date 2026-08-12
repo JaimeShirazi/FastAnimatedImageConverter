@@ -586,6 +586,7 @@ namespace FAIC
                 {
                     Directory.CreateDirectory(transparentTempFramesDirectory);
 
+                    //TODO: NOW THAT MULTIPLE ENCODES CAN HAPPEN SIMULTANEOUSLY, THERE NEEDS TO BE UNIQUE FRAME CACHES
                     await EncodeWithFFmpeg(settings, "", token, "rgba", outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"), suppressComplete: true);
 
                     TryOutput("Done preparing frames.", ConsoleMessageType.Progress);
