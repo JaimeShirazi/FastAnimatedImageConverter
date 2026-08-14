@@ -22,6 +22,15 @@ namespace FAIC.Types.Cuts
 
         public int Selected => _selected;
         public int Total => _cuts.Count;
+        public decimal GetTotalLengthRatio()
+        {
+            decimal sum = 0;
+            for (int i = 0; i < _cuts.Count; i++)
+            {
+                sum += _cuts[i].End - _cuts[i].Start;
+            }
+            return sum;
+        }
 
         public Cut this[int index]
         {

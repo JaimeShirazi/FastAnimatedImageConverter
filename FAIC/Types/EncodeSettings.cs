@@ -277,7 +277,7 @@ namespace FAIC.Types
         public decimal TargetFrameRate;
         public int Repeats;
         public bool Transparent;
-        public int TotalFrames;
+        public decimal ExpectedLength;
 
         public List<Segment> Segments;
 
@@ -298,10 +298,12 @@ namespace FAIC.Types
             OutputFormat = outputFormat;
             OutputWidth = outputWidth;
             OutputHeight = outputHeight;
+            decimal expectedLength = cuts.GetTotalLengthRatio() * (decimal)mediaInfo.Length;
+            ExpectedLength = InputFormat == InputFormat.Concat
+                ? expectedLength / TargetFrameRate
+                : expectedLength;
             for (int i = 0; i < cuts.Total; i++)
             {
-                decimal length = cuts[i].Start - cuts[i].End;
-                TotalFrames += (int)Math.Ceiling(length / TargetFrameRate);
                 Segments.Add(new(cuts[i], mediaInfo, OutputWidth, OutputHeight, Tuning, Transparent && OutputFormat.SupportsTransparency(), speed, TargetFrameRate, interpolate));
             }
         }

@@ -2,18 +2,12 @@
 using FAIC.Types.Formats;
 using System.Diagnostics;
 using System.IO;
+using System.Windows.Controls;
 
 namespace FAIC
 {
     public partial class ConversionWindow : Form
     {
-        public struct Inputs
-        {
-            public string outputPath;
-            public double expectedLength;
-            public OutputCodec target;
-        }
-
         private Guid jobId;
         private readonly Stopwatch stopwatch = Stopwatch.StartNew();
         private readonly System.Windows.Forms.Timer timer = new();
@@ -21,8 +15,8 @@ namespace FAIC
 
         private Task conversionTask;
         private CancellationTokenSource cancellationTokenSource;
-        private double expectedLength;
-        
+        private decimal expectedLength;
+        private decimal frameRate;
         
         public ConversionWindow(EncodeSettings settings)
         {
@@ -42,10 +36,8 @@ namespace FAIC
             jobId = Guid.NewGuid();
             Program.RegisterJob(jobId);
             outputPath = settings.OutputPath;
-            expectedLength = (double)(settings.TotalFrames / settings.TargetFrameRate);
-            if (double.IsNaN(expectedLength)
-                || double.IsInfinity(expectedLength))
-                expectedLength = 0;
+            expectedLength = Math.Max(settings.ExpectedLength, 0);
+            frameRate = settings.TargetFrameRate;
             timer.Interval = 1000;
             timer.Tick += (_, _) =>
             {
@@ -155,7 +147,7 @@ namespace FAIC
         {
             public string FrameStatsLabel;
             public string SizeStatsLabel;
-            public double TimeMs;
+            public decimal TimeMs;
             public ProgressBarStyle EncodeProgressBarStyle;
         }
         private StateBuffer buffer;
@@ -165,7 +157,7 @@ namespace FAIC
             frameStatsLabel.Text = string.IsNullOrEmpty(target.FrameStatsLabel) ? "" : target.FrameStatsLabel;
             sizeStatsLabel.Text = string.IsNullOrEmpty(target.SizeStatsLabel) ? "" : target.SizeStatsLabel;
             encodeProgressBar.Value = expectedLength != 0
-                ? Math.Min((int)(encodeProgressBar.Maximum * ((target.TimeMs * 0.000001) / expectedLength)), encodeProgressBar.Maximum)
+                ? Math.Min((int)(encodeProgressBar.Maximum * ((target.TimeMs * 0.000001m) / expectedLength)), encodeProgressBar.Maximum)
                 : encodeProgressBar.Minimum;
             encodeProgressBar.Style = target.EncodeProgressBarStyle;
         }
@@ -187,21 +179,13 @@ namespace FAIC
             }
             else
             {
-                int frame = 0;
-                double fps = 0;
-                string speed = "";
-                if (progressAccum.ContainsKey("frame"))
-                {
-                    int.TryParse(progressAccum["frame"], out frame);
-                }
-                if (progressAccum.ContainsKey("fps"))
-                {
-                    double.TryParse(progressAccum["fps"], out fps);
-                }
-                if (progressAccum.ContainsKey("speed"))
-                {
-                    speed = progressAccum["speed"];
-                }
+                if (!(progressAccum.TryGetValue("frame", out string frameStr) && int.TryParse(frameStr, out int frame)))
+                    frame = 0;
+                if (!(progressAccum.TryGetValue("fps", out string fpsStr) && decimal.TryParse(fpsStr, out decimal fps)))
+                    fps = 0;
+                if (!(progressAccum.TryGetValue("speed", out string speed)))
+                    speed = "";
+
                 buffer.FrameStatsLabel = $"{frame} frames at {speed} ({fps:N2}fps)";
                 if (isPipe)
                 {
@@ -210,22 +194,26 @@ namespace FAIC
                 else
                 {
                     long size = 0;
-                    if (progressAccum.ContainsKey("total_size"))
+                    if (progressAccum.TryGetValue("total_size", out string totalSize))
                     {
-                        if (long.TryParse(progressAccum["total_size"], out size))
+                        if (long.TryParse(totalSize, out size))
                         {
                             size /= 1000;
                         }
                     }
                     buffer.SizeStatsLabel = $"{size}kB";
                 }
-                if (progressAccum.ContainsKey("out_time_ms"))
+                if (progressAccum.TryGetValue("out_time_ms", out string outTimeMs))
                 {
-                    if (double.TryParse(progressAccum["out_time_ms"], out double timeMs))
-                    {
-                        buffer.TimeMs = timeMs;
-                    }
+                    if (!decimal.TryParse(outTimeMs, out buffer.TimeMs))
+                        buffer.TimeMs = 0;
                 }
+                if (buffer.TimeMs < 1)
+                {
+                    //Try using frames as a time estimate
+                    buffer.TimeMs = (frame / frameRate) * 1000000;
+                }
+                Program.TryOutput($"Expected {expectedLength} & time out {buffer.TimeMs}");
                 buffer.EncodeProgressBarStyle = ProgressBarStyle.Blocks;
             }
 
@@ -580,7 +568,12 @@ namespace FAIC
 
             if (settings.Transparent)
             {
-                int frameDigits = (int)Math.Floor(Math.Log10(settings.TotalFrames)) + 1;
+                int expectedFrames = (int)Math.Ceiling(settings.InputFormat == InputFormat.Concat
+                    ? settings.ExpectedLength * settings.TargetFrameRate
+                    : settings.ExpectedLength / settings.TargetFrameRate
+                    );
+
+                int frameDigits = (int)Math.Floor(Math.Log10(expectedFrames)) + 1;
 
                 try
                 {
