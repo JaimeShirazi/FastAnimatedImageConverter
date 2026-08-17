@@ -47,7 +47,7 @@ namespace FAIC.Types
             ToString(null, CultureInfo.InvariantCulture);
         #endregion
 
-        public static bool IsSteady(Fraction averageFrameRate, Fraction baseFrameRate)
+        public static bool IsFrameRateSteady(Fraction averageFrameRate, Fraction baseFrameRate)
         {
             //Without both, we can't say for sure, so we assume it is.
             if (averageFrameRate.IsInvalid || baseFrameRate.IsInvalid) return true;

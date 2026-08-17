@@ -156,8 +156,15 @@ namespace FAIC
             if (complete) return;
             frameStatsLabel.Text = string.IsNullOrEmpty(target.FrameStatsLabel) ? "" : target.FrameStatsLabel;
             sizeStatsLabel.Text = string.IsNullOrEmpty(target.SizeStatsLabel) ? "" : target.SizeStatsLabel;
+            int targetValue = Math.Min((int)(encodeProgressBar.Maximum * ((target.TimeMs * 0.000001m) / expectedLength)), encodeProgressBar.Maximum);
+            if (Math.Clamp(targetValue, encodeProgressBar.Minimum, encodeProgressBar.Maximum) != targetValue)
+            {
+                //TODO: we need to identify why this is happening sometimes and fix the root issue
+                Program.TryOutput(ConsoleMessageType.Warning, $"Clamping issue, attempted value was {targetValue} and range is {encodeProgressBar.Minimum} and {encodeProgressBar.Maximum}.");
+                targetValue = Math.Clamp(targetValue, encodeProgressBar.Minimum, encodeProgressBar.Maximum);
+            }
             encodeProgressBar.Value = expectedLength != 0
-                ? Math.Min((int)(encodeProgressBar.Maximum * ((target.TimeMs * 0.000001m) / expectedLength)), encodeProgressBar.Maximum)
+                ? targetValue
                 : encodeProgressBar.Minimum;
             encodeProgressBar.Style = target.EncodeProgressBarStyle;
         }
@@ -211,9 +218,8 @@ namespace FAIC
                 if (buffer.TimeMs < 1)
                 {
                     //Try using frames as a time estimate
-                    buffer.TimeMs = (frame / frameRate) * 1000000;
+                    buffer.TimeMs = (frame / frameRate) * 1000000m;
                 }
-                Program.TryOutput($"Expected {expectedLength} & time out {buffer.TimeMs}");
                 buffer.EncodeProgressBarStyle = ProgressBarStyle.Blocks;
             }
 

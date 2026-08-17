@@ -87,8 +87,8 @@ namespace FAIC.Types
                 bool isTransparent,
                 double Speed, decimal TargetFrameRate, InterpolateSetting Interpolate)
             {
-                Start = from.Start * (decimal)currentInfo.Length;
-                End = from.End * (decimal)currentInfo.Length;
+                Start = from.Start * (decimal)currentInfo.BestLength;
+                End = from.End * (decimal)currentInfo.BestLength;
                 System.Windows.Rect Crop = from.NormalizedCrop;
                 this.outputWidth = outputWidth;
                 this.outputHeight = outputHeight;
@@ -207,7 +207,7 @@ namespace FAIC.Types
             };
             public readonly FilterChain GetFilters()
             {
-                return new FilterChain(
+                List<(string, IFilterParameters)> source =
                 [
                     ("trim", new FilterConfig([
                                 ("start", FFmpegDuration(Start)),
@@ -216,16 +216,25 @@ namespace FAIC.Types
                     ),
                     ("settb", new FilterSetting("AVTB")),
                     ("setpts", new FilterSetting($"(PTS-STARTPTS)/{FFmpegNumber(Speed)}")),
-                    Interpolate switch
-                    {
-                        InterpolateSetting.Nearest => ("fps", new FilterSetting(FFmpegNumber(TargetFrameRate))),
-                        InterpolateSetting.Blended => ("minterpolate", new FilterConfig([
+                ];
+
+                switch (Interpolate)
+                {
+                    case InterpolateSetting.Nearest:
+                        source.Add(("fps", new FilterSetting(FFmpegNumber(TargetFrameRate))));
+                        break;
+                    case InterpolateSetting.Blended:
+                        source.Add(("minterpolate", new FilterConfig(
+                            [
                                 ("fps", FFmpegNumber(TargetFrameRate)),
                                 ("mi_mode", "blend"),
-                            ])),
-                        _ => throw new System.NotImplementedException()
-                    },
-                    ("format", new FilterSetting("rgba64le")), //helps prevent "green mode"
+                            ])));
+                        break;
+                }
+
+                source.AddRange(
+                [
+                    ("format", new FilterSetting("gbrap16le")), //helps prevent "green mode"
                     ("crop", new FilterConfig([
                                 ("w", FFmpegNumber(croppedWidth)),
                                 ("h", FFmpegNumber(croppedHeight)),
@@ -249,8 +258,9 @@ namespace FAIC.Types
                                 ("color", isTransparent ? "black@0" : "black"),
                             ])),
                     ("setsar", new FilterSetting("1")),
-                ]
-                );
+                ]);
+
+                return new FilterChain(source);
             }
         }
         public enum TuningSetting
@@ -260,7 +270,8 @@ namespace FAIC.Types
         }
         public enum InterpolateSetting
         {
-            Nearest, //When none, nearest is used, and the fps is just matched to the input
+            None,
+            Nearest,
             Blended
         }
         public string InputPath;
@@ -268,6 +279,8 @@ namespace FAIC.Types
         public InputCodec InputCodec;
         public string OutputPath;
         public OutputCodec OutputFormat;
+        public bool HDR;
+        public bool RequiresTonemapping;
         /// <summary>
         /// From 0 to 100
         /// </summary>
@@ -286,7 +299,7 @@ namespace FAIC.Types
             ProbeMediaInfo mediaInfo,
             OutputCodec outputFormat,
             int outputWidth, int outputHeight,
-            TuningSetting tuning, bool transparent,
+            TuningSetting tuning, bool transparent, bool hdr,
             double speed, decimal targetFrameRate, InterpolateSetting interpolate)
         {
             InputFormat = InputFormatUtils.GetTarget(mediaInfo.Format);
@@ -298,7 +311,7 @@ namespace FAIC.Types
             OutputFormat = outputFormat;
             OutputWidth = outputWidth;
             OutputHeight = outputHeight;
-            decimal expectedLength = cuts.GetTotalLengthRatio() * (decimal)mediaInfo.Length;
+            decimal expectedLength = cuts.GetTotalLengthRatio() * (decimal)mediaInfo.BestLength;
             ExpectedLength = InputFormat == InputFormat.Concat
                 ? expectedLength / TargetFrameRate
                 : expectedLength;

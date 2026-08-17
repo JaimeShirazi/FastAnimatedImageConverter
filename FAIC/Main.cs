@@ -102,7 +102,7 @@ namespace FAIC
             {
                 bool hadInfo = !(info?.IsEmpty() ?? true);
                 if (!hadInfo) throw new System.NullReferenceException("Could not retrieve info from the input file.");
-                if (info.Length <= 0) throw new System.ArgumentOutOfRangeException("Cannot use media with zero length.");
+                if (info.BestLength <= 0) throw new System.ArgumentOutOfRangeException("Cannot use media with zero length.");
 
                 if (info.Width.ReadData && info.Height.ReadData)
                 {
@@ -117,9 +117,9 @@ namespace FAIC
 
                 refreshingCutUI = true;
                 TimeNumericUpDown.IMode targetTrimMode = latestInfo.IsConcat
-                    ? new TimeNumericUpDown.FramesMode((int)(info.Length))
-                    : new TimeNumericUpDown.SecondsMode((decimal)info.Length);
-                Program.NormalizedMinimumCutLength = targetTrimMode.GetMinimumCut() / (decimal)(info.Length);
+                    ? new TimeNumericUpDown.FramesMode((int)(info.BestLength))
+                    : new TimeNumericUpDown.SecondsMode((decimal)info.BestLength);
+                Program.NormalizedMinimumCutLength = targetTrimMode.GetMinimumCut() / (decimal)(info.BestLength);
 
                 beginningInput.SetMode(targetTrimMode, true);
                 endInput.SetMode(targetTrimMode, false);
@@ -128,8 +128,8 @@ namespace FAIC
 
                 playhead.Value = 0;
                 playhead.Maximum = latestInfo.IsConcat
-                    ? (int)(info.Length - 1)
-                    : (int)(1000 * info.Length);
+                    ? (int)(info.BestLength - 1)
+                    : (int)(1000 * info.BestLength);
 
                 playhead.TickFrequency = latestInfo.IsConcat ? 1 : 1000; playhead.SmallChange = playhead.TickFrequency;
                 playhead.LargeChange = latestInfo.IsConcat ? 10 : 10000;
@@ -197,7 +197,7 @@ namespace FAIC
             }
             target = Math.Clamp(target, playhead.Minimum, playhead.Maximum);
             playhead.Value = target;
-            decimal latestTimeNormalized = (decimal)time / (decimal)latestInfo.Length;
+            decimal latestTimeNormalized = (decimal)time / (decimal)latestInfo.BestLength;
             cuts.OnPlayheadMoved(latestTimeNormalized);
             cutsControl.PlayheadPosition = latestTimeNormalized; //seems redundant
         }
@@ -357,7 +357,7 @@ namespace FAIC
         private void addCutButton_Click(object sender, EventArgs e)
         {
             decimal normalisedTime = latestInfo.IsConcat
-                ? playhead.Value / (decimal)latestInfo.Length
+                ? playhead.Value / (decimal)latestInfo.BestLength
                 : (playhead.Value - playhead.Minimum) / (decimal)(playhead.Maximum - playhead.Minimum);
 
             cuts.AddButton(normalisedTime);
@@ -457,7 +457,7 @@ namespace FAIC
         private void RefreshSelectedCutUI()
         {
             Cut cut = cuts[cuts.Selected];
-            decimal timelineLength = (decimal)latestInfo.Length;
+            decimal timelineLength = (decimal)latestInfo.BestLength;
 
             refreshingCutUI = true;
             try
@@ -586,10 +586,10 @@ namespace FAIC
                     OutputCodecUtils.GetTarget(outputPath),
                     relativeSizeInput.EffectiveWidth, relativeSizeInput.EffectiveHeight,
                     processingFastRadio.Checked ? EncodeSettings.TuningSetting.Fast : EncodeSettings.TuningSetting.Best,
-                    transparentCheckbox.Checked,
+                    transparentCheckbox.Checked, hdrCheckbox.Checked,
                     Speeds[speedSlider.Value], fpsValue.Value, fpsSetting.SelectedIndex switch
                     {
-                        0 => EncodeSettings.InterpolateSetting.Nearest,
+                        0 => latestInfo.IsConcat ? EncodeSettings.InterpolateSetting.Nearest : EncodeSettings.InterpolateSetting.None,
                         1 => EncodeSettings.InterpolateSetting.Nearest,
                         2 => EncodeSettings.InterpolateSetting.Blended,
                         _ => throw new System.NotImplementedException($"Unrecognised FPS setting target option number ({fpsSetting.SelectedIndex})")

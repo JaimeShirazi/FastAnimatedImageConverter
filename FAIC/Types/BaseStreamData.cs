@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using FAIC.Types.Formats;
+using System.Globalization;
 using System.Text.Json;
 
 namespace FAIC.Types
@@ -8,6 +9,11 @@ namespace FAIC.Types
         public bool ReadData { get; private set; }
         public readonly string key;
         public BaseStreamData(string key) { this.key = key; }
+        public void TryReadIfEmpty(JsonElement element)
+        {
+            if (ReadData) return;
+            TryRead(element);
+        }
         public void TryRead(JsonElement element)
         {
             if (element.TryGetProperty(key, out JsonElement property))
@@ -87,5 +93,54 @@ namespace FAIC.Types
         public override int GetHashCode() => Value.GetHashCode();
         public static bool operator ==(ParsedStreamData<T> a, ParsedStreamData<T> b) => a.Value.Equals(b.Value);
         public static bool operator !=(ParsedStreamData<T> a, ParsedStreamData<T> b) => !a.Value.Equals(b.Value);
+    }
+    public class StreamSideData : BaseStreamData
+    {
+        /// <returns>Peak nits, or 0 if none were found.</returns>
+        public double TryGetPeakNits(InputTransfer transfer, out bool wasFallback)
+        {
+            wasFallback = false;
+            if (MaxContent.ReadData) return MaxContent.Value;
+            else if (MaxLuminance.ReadData) return (double)MaxLuminance.Value.Num / (double)MaxLuminance.Value.Den;
+            else
+            {
+                wasFallback = true;
+                long fallback = transfer.TryGetFallbackPeakNits();
+                if (MaxAverage.ReadData
+                    && MaxAverage.Value > fallback)
+                {
+                    //Program.TryOutput(ConsoleMessageType.Warning, "Since it is higher than the fallback, peak luminance will use the discovered average luminance value.");
+                    fallback = MaxAverage.Value;
+                }
+                return fallback;
+            }
+        }
+        public ParsedStreamData<Fraction> MaxLuminance = new(key: "max_luminance");
+        public ParsedStreamData<long> MaxContent = new(key: "max_content");
+        public ParsedStreamData<long> MaxAverage = new(key: "max_average");
+
+        public StreamSideData(string key) : base(key) { }
+        protected override bool TryReadProperty(JsonElement property)
+        {
+            if (property.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement sideData in property.EnumerateArray())
+                {
+                    if (!sideData.TryGetProperty("side_data_type", out JsonElement type)) continue;
+
+                    switch (type.GetString().ToLowerInvariant())
+                    {
+                        case "mastering display metadata":
+                            MaxLuminance.TryReadIfEmpty(sideData);
+                            break;
+                        case "content light level metadata":
+                            MaxContent.TryReadIfEmpty(sideData);
+                            MaxAverage.TryReadIfEmpty(sideData);
+                            break;
+                    }
+                }
+            }
+            return MaxLuminance.ReadData || MaxContent.ReadData || MaxAverage.ReadData;
+        }
     }
 }

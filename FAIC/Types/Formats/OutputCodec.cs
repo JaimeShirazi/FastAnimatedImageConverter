@@ -40,5 +40,10 @@ namespace FAIC.Types.Formats
             }
         }
         public static bool SupportsTransparency(this OutputCodec _) => true; //currently, all formats support transparency
+        public static bool SupportsHDR(this OutputCodec codec) => codec switch
+        {
+            OutputCodec.AVIF or OutputCodec.JXL or OutputCodec.APNG => true,
+            _ => false
+        };
     }
 }

@@ -2,6 +2,7 @@ using FAIC.Types;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 
@@ -100,10 +101,13 @@ namespace FAIC
                         (isConcat ? $"-safe 0 " : "") +
                         $"-v error " +
                         "-select_streams v:0 " +
-                        $"-show_entries {mediaInfo.GetInputArguments()} " + //Duration is sometimes stored in stream_tags instead of stream
+                        "-read_intervals \"%+#1\" " + //Reads 1 packet from the beginning (not necessarily frame 1)
+                        $"-show_streams -show_frames -show_entries {mediaInfo.GetInputArguments()} " +
                         $"-of json \"{path}\""
                 }
             };
+
+            Program.TryOutput(proc.StartInfo.Arguments);
 
             SetupFFProbeProcess(proc, out var stdoutTask);
 
