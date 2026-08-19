@@ -16,8 +16,6 @@
 --enable-amf
 
 # Stuff we need
---enable-gmp
---enable-gpl
 --enable-libdav1d
 --enable-libaom
 --enable-libwebp
@@ -26,3 +24,7 @@
 
 # ffmpeg's native vp8/vp9 decoders do not contain alpha decoding support
 --enable-libvpx
+
+# for HDR support and tonemapping
+--enable-vulkan
+--enable-libplacebo
