@@ -50,8 +50,8 @@ namespace FAIC.Types
         public StreamSideData StreamSideData = new(key: "stream_side_data");
         public StreamSideData FrameSideData = new(key: "frame_side_data");
 
-        private InputTransfer supportedTransfer = InputTransfer.Unsupported;
-        public InputTransfer SupportedTransfer
+        private ColorKey supportedTransfer = ColorKey.Unsupported;
+        public ColorKey SupportedTransfer
         {
             get => supportedTransfer;
             private set => supportedTransfer = value;
@@ -198,28 +198,11 @@ namespace FAIC.Types
 
             if (ColorTransfer.ReadData)
             {
-                SupportedTransfer = InputTransferUtils.GetFromProbe(ColorTransfer.Value);
+                SupportedTransfer = ColorKeyUtils.FromFFmpegName(ColorTransfer.Value);
             }
-
-            if (SupportedTransfer.IsHDR())
+            else
             {
-                bool wasFallback = false;
-                if (FrameSideData.ReadData)
-                {
-                    PeakNits = FrameSideData.TryGetPeakNits(SupportedTransfer, out wasFallback);
-                }
-                else wasFallback = true;
-
-                if (wasFallback
-                    && StreamSideData.ReadData)
-                {
-                    PeakNits = StreamSideData.TryGetPeakNits(SupportedTransfer, out wasFallback);
-                }
-
-                if (wasFallback)
-                {
-                    Program.TryOutput(ConsoleMessageType.Error, "Peak luminance values were missing for HDR content. Using fallbacks.");
-                }
+                SupportedTransfer = ColorKey.bt709; //Force a bt.709 fallback
             }
 
             if (Format.ReadData
@@ -260,7 +243,8 @@ namespace FAIC.Types
                     fpsStatus = $"{EstimatedFrameRate} frame rate ({fpsSteadiness})";
                 }
             }
-            return $"({lengthStatus}, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {Codec.Value} encoding in {Format.Value} format. {SupportedTransfer.ToDisplayString(peakNits)}. Color space: {ColorSpace.Value}, Color primaries: {ColorPrimaries.Value}, Color transfer: {ColorTransfer.Value}, Color range: {ColorRange.Value}.)";
+            string dynamicRange = SupportedTransfer.TransferIsHDR() ? "HDR" : "SDR";
+            return $"({lengthStatus}, {fpsStatus}, {Width.Value}x{Height.Value} resolution, {dynamicRange}, {Codec.Value} encoding in {Format.Value} format. Color space: {ColorSpace.Value}, Color primaries: {ColorPrimaries.Value}, Color transfer: {ColorTransfer.Value}, Color range: {ColorRange.Value}.)";
         }
         public override string ToString() => ToString(null, CultureInfo.InvariantCulture);
     }

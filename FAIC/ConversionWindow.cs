@@ -314,7 +314,7 @@ namespace FAIC
         }
         private async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt)
         {
-            string arguments = settings.GetFFmpegArguments(false) +
+            string arguments = settings.GetFFmpegArguments() +
                         $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
                         "-f yuv4mpegpipe -";
 
@@ -400,19 +400,17 @@ namespace FAIC
                 }
             }
         }
-        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, string pixfmt, bool omitLoops = false, string outputPath = "", bool alphaInSecondStream = false, bool suppressComplete = false)
+        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, bool omitLoops = false, string outputPath = "", bool suppressComplete = false)
         {
             int loops = Math.Min(settings.Repeats + 1, 0);
             string targetOutput = string.IsNullOrEmpty(outputPath) ? settings.OutputPath : outputPath;
 
-            string allArguments = settings.GetFFmpegArguments(alphaInSecondStream) +
+            string allArguments = settings.GetFFmpegArguments() +
                         $"-r {settings.TargetFrameRate} ";
 
             if (!omitLoops) allArguments += $"-loop {loops} ";
 
             allArguments += "-threads 0 ";
-
-            if (!string.IsNullOrEmpty(pixfmt)) allArguments += $"-pix_fmt {pixfmt} ";
 
             allArguments += $"{arguments} \"{targetOutput}\"";
 
@@ -467,7 +465,7 @@ namespace FAIC
                 arguments += "-crf:v:1 0 -tune:v:1 psnr "; //Temp just forcing perfect alpha quality
             }
 
-            await EncodeWithFFmpeg(settings, arguments, token, "", alphaInSecondStream: settings.Transparent);
+            await EncodeWithFFmpeg(settings, arguments, token);
         }
         public async Task EncodeWebP(EncodeSettings settings, CancellationToken token)
         {
@@ -486,7 +484,7 @@ namespace FAIC
 
             TryOutput("Progress does not currently display for WebP, but it is still processing. This is an issue with ffmpeg. It will say 0 frames, but it is still processing, please wait until you see the complete message.", ConsoleMessageType.Warning);
 
-            await EncodeWithFFmpeg(settings, arguments, token, "bgra");
+            await EncodeWithFFmpeg(settings, arguments, token);
         }
         public async Task EncodeJXL(EncodeSettings settings, CancellationToken token)
         {
@@ -516,7 +514,7 @@ namespace FAIC
 
             arguments += "-f rawvideo ";
 
-            await EncodeWithFFmpeg(settings, arguments, token, settings.Transparent ? "rgba" : "rgb24");
+            await EncodeWithFFmpeg(settings, arguments, token);
         }
         public async Task EncodeAPNG(EncodeSettings settings, CancellationToken token)
         {
@@ -528,7 +526,7 @@ namespace FAIC
             int apngCompression = (int)Math.Round(9 * (1.0 - settings.Quality / 100.0));
             arguments += $"-compression_level {apngCompression} ";
 
-            await EncodeWithFFmpeg(settings, arguments, token, settings.Transparent ? "rgba" : "rgb24", omitLoops: true);
+            await EncodeWithFFmpeg(settings, arguments, token, omitLoops: true);
         }
         public async Task EncodeGIF(EncodeSettings settings, CancellationToken token)
         {
@@ -590,7 +588,7 @@ namespace FAIC
                     Directory.CreateDirectory(transparentTempFramesDirectory);
 
                     //TODO: NOW THAT MULTIPLE ENCODES CAN HAPPEN SIMULTANEOUSLY, THERE NEEDS TO BE UNIQUE FRAME CACHES
-                    await EncodeWithFFmpeg(settings, "", token, "rgba", outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"), suppressComplete: true);
+                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"), suppressComplete: true);
 
                     TryOutput("Done preparing frames.", ConsoleMessageType.Progress);
 

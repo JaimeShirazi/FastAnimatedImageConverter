@@ -10,25 +10,25 @@
     }
     public static class OutputSpaceUtils
     {
-        public static OutputSpace SupportedSpaces(InputTransfer transfer, OutputCodec outputCodec)
+        public static OutputSpace SupportedSpaces(ColorKey transfer, OutputCodec outputCodec)
         {
-            if (transfer == InputTransfer.Unsupported) return OutputSpace.Unsupported;
+            if (transfer == ColorKey.Unsupported) return OutputSpace.Unsupported;
             if (!outputCodec.SupportsHDR()) return OutputSpace.bt709;
             switch (transfer)
             {
-                case InputTransfer.smpte2084:
+                case ColorKey.smpte2084:
                     return OutputSpace.bt709 | OutputSpace.bt2020_PQ;
-                case InputTransfer.arib_std_b67:
+                case ColorKey.arib_std_b67:
                     return OutputSpace.bt709 | OutputSpace.bt2020_HLG;
                 default:
                     return OutputSpace.bt709;
             }
         }
-        public static bool NeedsTonemapping(this OutputSpace space, InputTransfer transfer) => space switch
+        public static bool NeedsTonemapping(this OutputSpace space, ColorKey transfer) => space switch
         {
-            OutputSpace.bt709 => transfer != InputTransfer.bt709,
-            OutputSpace.bt2020_PQ => transfer != InputTransfer.smpte2084,
-            OutputSpace.bt2020_HLG => transfer != InputTransfer.arib_std_b67,
+            OutputSpace.bt709 => transfer != ColorKey.bt709,
+            OutputSpace.bt2020_PQ => transfer != ColorKey.smpte2084,
+            OutputSpace.bt2020_HLG => transfer != ColorKey.arib_std_b67,
             _ => true,
         };
         public static OutputSpace GetBestFlag(this OutputSpace flags, bool useHDR)

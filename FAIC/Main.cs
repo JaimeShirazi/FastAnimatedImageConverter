@@ -114,6 +114,8 @@ namespace FAIC
                 relativeSizeInput.Ratio = 1m;
 
                 transparentCheckbox.Text = InputCodecUtils.GetTarget(info.Codec).SupportsTransparency() ? "Transparent" : "Transparent Bars";
+                hdrCheckbox.Enabled = info.SupportedTransfer.TransferIsHDR();
+                hdrCheckbox.Checked = hdrCheckbox.Enabled;
 
                 refreshingCutUI = true;
                 TimeNumericUpDown.IMode targetTrimMode = latestInfo.IsConcat
@@ -580,13 +582,20 @@ namespace FAIC
                     break;
             }
 
+            OutputCodec outputCodec = OutputCodecUtils.GetTarget(outputPath);
+
+            bool isHDR = latestInfo.SupportedTransfer.TransferIsHDR();
+            bool isHighBits = latestInfo.SupportedTransfer.TransferIsHighBit();
+            ColorHandlingMode colorMode =
+                (isHDR && outputCodec.SupportsHDR() && hdrCheckbox.Checked) ? ColorHandlingMode.HighDynamicRange
+                : ((isHighBits && outputCodec.SupportsHighBits()) ? ColorHandlingMode.HighBits : ColorHandlingMode.NormalBits);
+
             try
             {
-                EncodeSettings settings = new EncodeSettings(cuts, latestInfo,
-                    OutputCodecUtils.GetTarget(outputPath),
+                EncodeSettings settings = new EncodeSettings(cuts, latestInfo, outputCodec,
                     relativeSizeInput.EffectiveWidth, relativeSizeInput.EffectiveHeight,
                     processingFastRadio.Checked ? EncodeSettings.TuningSetting.Fast : EncodeSettings.TuningSetting.Best,
-                    transparentCheckbox.Checked, hdrCheckbox.Checked,
+                    transparentCheckbox.Checked, colorMode,
                     Speeds[speedSlider.Value], fpsValue.Value, fpsSetting.SelectedIndex switch
                     {
                         0 => latestInfo.IsConcat ? EncodeSettings.InterpolateSetting.Nearest : EncodeSettings.InterpolateSetting.None,

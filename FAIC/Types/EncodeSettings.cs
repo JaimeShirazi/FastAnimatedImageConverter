@@ -1,6 +1,5 @@
 ﻿using FAIC.Types.Cuts;
 using FAIC.Types.Formats;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 
@@ -18,7 +17,7 @@ namespace FAIC.Types
         {
             public void ToDisplay(StringBuilder builder);
         }
-        public struct FilterComplex(List<Segment.FilterChain> chains, bool alphaInSecondStream) : IFilterParameters
+        public struct FilterComplex : IFilterParameters
         {
             public const string MASTER_LABEL = "masterOut";
 
@@ -27,8 +26,21 @@ namespace FAIC.Types
             public const string COLOR_MAP_LABEL = "colorOut";
             public const string ALPHA_MAP_LABEL = "alphaOut";
 
-            private readonly List<Segment.FilterChain> Chains = chains;
-            private readonly bool AlphaInSecondStream = alphaInSecondStream;
+            private readonly List<Segment.FilterChain> Chains;
+            private readonly OutputCodec TargetCodec;
+            private readonly ColorHandlingMode ColorHandling;
+            private readonly bool transparent;
+            public FilterComplex(List<Segment> segments, OutputCodec targetCodec, ColorHandlingMode colorHandling, bool transparent)
+            {
+                TargetCodec = targetCodec;
+                ColorHandling = colorHandling;
+                this.transparent = transparent;
+                Chains = [];
+                for (int i = 0; i < segments.Count; i++)
+                {
+                    Chains.Add(segments[i].GetFilters(colorHandling, targetCodec));
+                }
+            }
             public void ToDisplay(StringBuilder builder)
             {
                 builder.Append($"-filter_complex \"[0:v:0]split={Chains.Count}");
@@ -47,22 +59,25 @@ namespace FAIC.Types
                 {
                     builder.Append($"[segment{i}]");
                 }
-                string concatOutput = AlphaInSecondStream ? MASTER_LABEL : COLOR_MAP_LABEL;
+
+                bool alphaInSecondStream = TargetCodec.TransparencyInSecondStream() && transparent;
+                string concatOutput = alphaInSecondStream ? MASTER_LABEL : COLOR_MAP_LABEL;
                 builder.Append($"concat=n={Chains.Count}:v=1:a=0[{concatOutput}]");
-                if (AlphaInSecondStream)
+                if (alphaInSecondStream)
                 {
+                    string range = ColorHandling.IsFullRange(TargetCodec) ? "full" : "limited";
                     builder.Append(
-                        $";[{MASTER_LABEL}]format=gbrap16le,split=2[{COLOR_SOURCE_LABEL}][{ALPHA_SOURCE_LABEL}];" +
+                        $";[{MASTER_LABEL}]format={ColorHandling.GetColorAndAlphaMerged(TargetCodec).Value.ToFFmpegName()},split=2[{COLOR_SOURCE_LABEL}][{ALPHA_SOURCE_LABEL}];" +
                         $"[{COLOR_SOURCE_LABEL}]" +
-                        "format=yuv420p," +
-                        "setparams=range=limited:" +
-                        "color_primaries=bt709:" +
-                        "color_trc=bt709:" +
-                        "colorspace=bt709" +
+                        $"format={ColorHandling.GetPixelFormat(TargetCodec, true).ToFFmpegName()}," +
+                        $"setparams=range={range}:" +
+                        $"color_primaries={ColorHandling.GetPrimaries().ToFFmpegName()}:" +
+                        $"color_trc={ColorHandling.GetTransfer().ToFFmpegName()}:" +
+                        $"colorspace={ColorHandling.GetMatrix(TargetCodec, true).ToFFmpegName()}" +
                         $"[{COLOR_MAP_LABEL}];" +
                         $"[{ALPHA_SOURCE_LABEL}]" +
                         "alphaextract," +
-                        "format=gray," +
+                        $"format={ColorHandling.GetAlphaFormat(TargetCodec).Value.ToFFmpegName()}," +
                         "setparams=range=full:" +
                         "color_primaries=unknown:" +
                         "color_trc=unknown:" +
@@ -125,6 +140,7 @@ namespace FAIC.Types
                 this.Speed = Speed;
                 this.TargetFrameRate = TargetFrameRate;
                 this.Interpolate = Interpolate;
+                tuning = tuningSetting;
 
                 int sourceWidth = currentInfo.Width;
                 int sourceHeight = currentInfo.Height;
@@ -198,26 +214,11 @@ namespace FAIC.Types
                         MidpointRounding.AwayFromZero),
                     1,
                     outputHeight);
-
-                bool scalingRequired =
-                    scaledWidth != croppedWidth ||
-                    scaledHeight != croppedHeight;
-
-                bool isUpscaling =
-                    scaledWidth > croppedWidth ||
-                    scaledHeight > croppedHeight;
-
-                resample = tuningSetting switch
-                {
-                    TuningSetting.Fast => ResampleSetting.Bilinear,
-                    TuningSetting.Best => isUpscaling ? ResampleSetting.Spline36 : ResampleSetting.Lanczos,
-                    _ => throw new System.NotImplementedException()
-                };
             }
             public decimal Start;
             public decimal End;
             public int croppedWidth, croppedHeight, cropX, cropY, scaledWidth, scaledHeight, outputWidth, outputHeight;
-            public ResampleSetting resample;
+            public TuningSetting tuning;
             public bool isTransparent;
             public double Speed;
             public decimal TargetFrameRate;
@@ -228,13 +229,13 @@ namespace FAIC.Types
             }
             public static string GetFlag(ResampleSetting setting) => setting switch
             {
-                ResampleSetting.None => "neighbor",
+                ResampleSetting.None => "nearest",
                 ResampleSetting.Bilinear => "bilinear",
                 ResampleSetting.Lanczos => "lanczos",
-                ResampleSetting.Spline36 => "spline",
+                ResampleSetting.Spline36 => "spline36",
                 _ => throw new System.NotImplementedException()
             };
-            public readonly FilterChain GetFilters()
+            public readonly FilterChain GetFilters(ColorHandlingMode mode, OutputCodec codec)
             {
                 List<(string, IFilterParameters)> source =
                 [
@@ -261,9 +262,53 @@ namespace FAIC.Types
                         break;
                 }
 
+                string libplaceboFormat = mode.GetPixelFormat(codec, isTransparent).ToFFmpegName();
+                if (codec.TransparencyInSecondStream() && isTransparent)
+                {
+                    libplaceboFormat = mode.GetColorAndAlphaMerged(codec).Value.ToFFmpegName();
+                }
+
+                List<(string, string)> libplaceboArgs = [
+                            // Output canvas.
+                            ("w", FFmpegNumber(outputWidth)),
+                            ("h", FFmpegNumber(outputHeight)),
+
+                            // Scale the cropped input and place it within that canvas.
+                            ("pos_w", FFmpegNumber(scaledWidth)),
+                            ("pos_h", FFmpegNumber(scaledHeight)),
+                            ("pos_x", "floor((ow-pw)/2)"),
+                            ("pos_y", "floor((oh-ph)/2)"),
+
+                            // Transparent black is important when preserving alpha.
+                            ("fillcolor", isTransparent ? "black@0" : "black"),
+
+                            ("upscaler", GetFlag(tuning switch{
+                                TuningSetting.Best => ResampleSetting.Spline36,
+                                TuningSetting.Fast or _ => ResampleSetting.Bilinear
+                            })),
+                            ("downscaler", GetFlag(tuning switch{
+                                TuningSetting.Best => ResampleSetting.Lanczos,
+                                TuningSetting.Fast or _ => ResampleSetting.Bilinear
+                            })),
+
+                            ("format", libplaceboFormat),
+                            ("colorspace", mode.GetMatrix(codec, isTransparent).ToFFmpegName()),
+                            ("color_primaries", mode.GetPrimaries().ToFFmpegName()),
+                            ("color_trc", mode.GetTransfer().ToFFmpegName()),
+                            ("range", mode.IsFullRange(codec) ? "pc" : "tv"),
+
+                            //Shared tonemapping technique
+                            ("tonemapping", "bt.2390"),
+                            ("gamut_mode", "perceptual"),
+                            ("inverse_tonemapping", "0"),
+                            ("peak_detect", "1"),
+                            ("smoothing_period", "20"),
+                    ];
+
+                if (isTransparent) libplaceboArgs.Add(("alpha_mode", "straight"));
+
                 source.AddRange(
                 [
-                    ("format", new FilterSetting("gbrap16le")), //helps prevent "green mode"
                     ("crop", new FilterConfig([
                                 ("w", FFmpegNumber(croppedWidth)),
                                 ("h", FFmpegNumber(croppedHeight)),
@@ -272,26 +317,7 @@ namespace FAIC.Types
                                 ("exact", "1"),
                             ])
                     ),
-                    ("setsar", new FilterSetting("1")),
-
-                    // Alpha-aware spatial resampling. Output returns to straight alpha.
-                    ("premultiply", new FilterConfig([("inplace", "1")])),
-
-                    ("scale", new FilterConfig([
-                                ("w", FFmpegNumber(scaledWidth)),
-                                ("h", FFmpegNumber(scaledHeight)),
-                                ("flags", GetFlag(resample)),
-                            ])),
-
-                    ("unpremultiply", new FilterConfig([("inplace", "1")])),
-
-                    ("pad", new FilterConfig([
-                                ("w", FFmpegNumber(outputWidth)),
-                                ("h", FFmpegNumber(outputHeight)),
-                                ("x", "floor((ow-iw)/2)"),
-                                ("y", "floor((oh-ih)/2)"),
-                                ("color", isTransparent ? "black@0" : "black"),
-                            ])),
+                    ("libplacebo", new FilterConfig(libplaceboArgs)),
                     ("setsar", new FilterSetting("1")),
                 ]);
 
@@ -314,8 +340,7 @@ namespace FAIC.Types
         public InputCodec InputCodec;
         public string OutputPath;
         public OutputCodec OutputFormat;
-        public bool HDR;
-        public bool RequiresTonemapping;
+        public ColorHandlingMode ColorMode;
         /// <summary>
         /// From 0 to 100
         /// </summary>
@@ -334,12 +359,13 @@ namespace FAIC.Types
             ProbeMediaInfo mediaInfo,
             OutputCodec outputFormat,
             int outputWidth, int outputHeight,
-            TuningSetting tuning, bool transparent, bool hdr,
+            TuningSetting tuning, bool transparent, ColorHandlingMode colorMode,
             double speed, decimal targetFrameRate, InterpolateSetting interpolate)
         {
             InputFormat = InputFormatUtils.GetTarget(mediaInfo.Format);
             InputCodec = InputCodecUtils.GetTarget(mediaInfo.Codec);
-            Transparent = transparent;
+            Transparent = transparent && OutputFormat.SupportsTransparency();
+            ColorMode = colorMode;
             Segments = new(cuts.Total);
             TargetFrameRate = targetFrameRate;
             Tuning = tuning;
@@ -352,10 +378,10 @@ namespace FAIC.Types
                 : expectedLength;
             for (int i = 0; i < cuts.Total; i++)
             {
-                Segments.Add(new(cuts[i], mediaInfo, OutputWidth, OutputHeight, Tuning, Transparent && OutputFormat.SupportsTransparency(), speed, TargetFrameRate, interpolate));
+                Segments.Add(new(cuts[i], mediaInfo, OutputWidth, OutputHeight, Tuning, Transparent, speed, TargetFrameRate, interpolate));
             }
         }
-        public string GetFFmpegArguments(bool alphaInSecondStream)
+        public string GetFFmpegArguments()
         {
             StringBuilder builder = new();
             builder.Append("-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 ");
@@ -377,15 +403,10 @@ namespace FAIC.Types
 
             builder.Append($"-i \"{InputPath}\" ");
 
-            List<Segment.FilterChain> chains = [];
-            for (int i = 0; i < Segments.Count; i++)
-            {
-                chains.Add(Segments[i].GetFilters());
-            }
-            new FilterComplex(chains, alphaInSecondStream).ToDisplay(builder);
+            new FilterComplex(Segments, OutputFormat, ColorMode, Transparent).ToDisplay(builder);
 
             builder.Append($"-map \"[{FilterComplex.COLOR_MAP_LABEL}]\" ");
-            if (alphaInSecondStream)
+            if (Transparent && OutputFormat.TransparencyInSecondStream())
             {
                 builder.Append($"-map \"[{FilterComplex.ALPHA_MAP_LABEL}]\" ");
             }

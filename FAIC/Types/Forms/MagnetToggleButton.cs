@@ -32,6 +32,7 @@ namespace FAIC.Types.Forms
 
                 magnetEnabled = value;
                 Invalidate();
+                UpdateStaticValue();
 
                 MagnetEnabledChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -113,6 +114,12 @@ namespace FAIC.Types.Forms
         {
             shiftHeld = ShiftMonitor.Instance.ShiftHeld;
             Invalidate();
+            UpdateStaticValue();
+        }
+
+        private void UpdateStaticValue()
+        {
+            Program.SnapEnabled = EffectiveMagnetEnabled;
         }
 
         protected override void SetBoundsCore(

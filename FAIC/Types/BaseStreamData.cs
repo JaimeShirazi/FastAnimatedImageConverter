@@ -97,7 +97,7 @@ namespace FAIC.Types
     public class StreamSideData : BaseStreamData
     {
         /// <returns>Peak nits, or 0 if none were found.</returns>
-        public double TryGetPeakNits(InputTransfer transfer, out bool wasFallback)
+        public double TryGetPeakNits(ColorKey transfer, out bool wasFallback)
         {
             wasFallback = false;
             if (MaxContent.ReadData) return MaxContent.Value;
@@ -105,7 +105,7 @@ namespace FAIC.Types
             else
             {
                 wasFallback = true;
-                long fallback = transfer.TryGetFallbackPeakNits();
+                long fallback = 10000;
                 if (MaxAverage.ReadData
                     && MaxAverage.Value > fallback)
                 {

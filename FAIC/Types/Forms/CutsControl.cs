@@ -445,7 +445,7 @@ namespace FAIC.Types.Forms
             decimal rawDelta = (e.X - drag.MouseDownLocation.X) / (decimal)TrackWidth;
             decimal delta = Math.Clamp(rawDelta, drag.Min, drag.Max);
 
-            if ((ModifierKeys & Keys.Shift) == 0)
+            if (Program.SnapEnabled)
             {
                 decimal snapTolerance = ScaleLogical(SnapDistancePixels) / (decimal)TrackWidth;
                 decimal nearestDistance = decimal.MaxValue;
