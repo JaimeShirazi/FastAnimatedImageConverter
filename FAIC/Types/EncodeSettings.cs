@@ -8,7 +8,6 @@ namespace FAIC.Types
 {
     public struct EncodeSettings
     {
-        private const string MAP_LABEL = "videoOut";
         private static string FFmpegNumber(decimal value) => value.ToString("G17", CultureInfo.InvariantCulture);
         private static string FFmpegNumber(double value) => value.ToString("G17", CultureInfo.InvariantCulture);
         private static string FFmpegNumber(int value) => value.ToString("G17", CultureInfo.InvariantCulture);
@@ -19,9 +18,17 @@ namespace FAIC.Types
         {
             public void ToDisplay(StringBuilder builder);
         }
-        public struct FilterComplex(List<Segment.FilterChain> chains) : IFilterParameters
+        public struct FilterComplex(List<Segment.FilterChain> chains, bool alphaInSecondStream) : IFilterParameters
         {
-            List<Segment.FilterChain> Chains = chains;
+            public const string MASTER_LABEL = "masterOut";
+
+            public const string COLOR_SOURCE_LABEL = "colorSource";
+            public const string ALPHA_SOURCE_LABEL = "alphaSource";
+            public const string COLOR_MAP_LABEL = "colorOut";
+            public const string ALPHA_MAP_LABEL = "alphaOut";
+
+            private readonly List<Segment.FilterChain> Chains = chains;
+            private readonly bool AlphaInSecondStream = alphaInSecondStream;
             public void ToDisplay(StringBuilder builder)
             {
                 builder.Append($"-filter_complex \"[0:v:0]split={Chains.Count}");
@@ -40,7 +47,29 @@ namespace FAIC.Types
                 {
                     builder.Append($"[segment{i}]");
                 }
-                builder.Append($"concat=n={Chains.Count}:v=1:a=0[{MAP_LABEL}]\" ");
+                string concatOutput = AlphaInSecondStream ? MASTER_LABEL : COLOR_MAP_LABEL;
+                builder.Append($"concat=n={Chains.Count}:v=1:a=0[{concatOutput}]");
+                if (AlphaInSecondStream)
+                {
+                    builder.Append(
+                        $";[{MASTER_LABEL}]format=gbrap16le,split=2[{COLOR_SOURCE_LABEL}][{ALPHA_SOURCE_LABEL}];" +
+                        $"[{COLOR_SOURCE_LABEL}]" +
+                        "format=yuv420p," +
+                        "setparams=range=limited:" +
+                        "color_primaries=bt709:" +
+                        "color_trc=bt709:" +
+                        "colorspace=bt709" +
+                        $"[{COLOR_MAP_LABEL}];" +
+                        $"[{ALPHA_SOURCE_LABEL}]" +
+                        "alphaextract," +
+                        "format=gray," +
+                        "setparams=range=full:" +
+                        "color_primaries=unknown:" +
+                        "color_trc=unknown:" +
+                        "colorspace=unknown" +
+                        $"[{ALPHA_MAP_LABEL}]");
+                }
+                builder.Append("\" ");
             }
         }
         public struct Segment
@@ -244,12 +273,18 @@ namespace FAIC.Types
                             ])
                     ),
                     ("setsar", new FilterSetting("1")),
+
+                    // Alpha-aware spatial resampling. Output returns to straight alpha.
+                    ("premultiply", new FilterConfig([("inplace", "1")])),
+
                     ("scale", new FilterConfig([
                                 ("w", FFmpegNumber(scaledWidth)),
                                 ("h", FFmpegNumber(scaledHeight)),
                                 ("flags", GetFlag(resample)),
                             ])),
-                    ("format", new FilterSetting("rgba")),
+
+                    ("unpremultiply", new FilterConfig([("inplace", "1")])),
+
                     ("pad", new FilterConfig([
                                 ("w", FFmpegNumber(outputWidth)),
                                 ("h", FFmpegNumber(outputHeight)),
@@ -320,7 +355,7 @@ namespace FAIC.Types
                 Segments.Add(new(cuts[i], mediaInfo, OutputWidth, OutputHeight, Tuning, Transparent && OutputFormat.SupportsTransparency(), speed, TargetFrameRate, interpolate));
             }
         }
-        public string GetFFmpegArguments()
+        public string GetFFmpegArguments(bool alphaInSecondStream)
         {
             StringBuilder builder = new();
             builder.Append("-y -nostats -stats_period 0.25 -progress pipe:2 -threads 0 ");
@@ -347,9 +382,13 @@ namespace FAIC.Types
             {
                 chains.Add(Segments[i].GetFilters());
             }
-            new FilterComplex(chains).ToDisplay(builder);
+            new FilterComplex(chains, alphaInSecondStream).ToDisplay(builder);
 
-            builder.Append($"-map \"[{MAP_LABEL}]\" ");
+            builder.Append($"-map \"[{FilterComplex.COLOR_MAP_LABEL}]\" ");
+            if (alphaInSecondStream)
+            {
+                builder.Append($"-map \"[{FilterComplex.ALPHA_MAP_LABEL}]\" ");
+            }
 
             return builder.ToString();
         }

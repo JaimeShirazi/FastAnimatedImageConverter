@@ -314,7 +314,7 @@ namespace FAIC
         }
         private async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt)
         {
-            string arguments = settings.GetFFmpegArguments() +
+            string arguments = settings.GetFFmpegArguments(false) +
                         $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
                         "-f yuv4mpegpipe -";
 
@@ -400,19 +400,21 @@ namespace FAIC
                 }
             }
         }
-        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, string pixfmt, bool omitLoops = false, string outputPath = "", bool suppressComplete = false)
+        private async Task EncodeWithFFmpeg(EncodeSettings settings, string arguments, CancellationToken token, string pixfmt, bool omitLoops = false, string outputPath = "", bool alphaInSecondStream = false, bool suppressComplete = false)
         {
             int loops = Math.Min(settings.Repeats + 1, 0);
             string targetOutput = string.IsNullOrEmpty(outputPath) ? settings.OutputPath : outputPath;
 
-            string allArguments = settings.GetFFmpegArguments() +
+            string allArguments = settings.GetFFmpegArguments(alphaInSecondStream) +
                         $"-r {settings.TargetFrameRate} ";
 
             if (!omitLoops) allArguments += $"-loop {loops} ";
 
-            allArguments += $"-threads 0 -pix_fmt {pixfmt} " +
-                        arguments +
-                        $"\"{targetOutput}\"";
+            allArguments += "-threads 0 ";
+
+            if (!string.IsNullOrEmpty(pixfmt)) allArguments += $"-pix_fmt {pixfmt} ";
+
+            allArguments += $"{arguments} \"{targetOutput}\"";
 
             Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", allArguments).Invoke((false, false));
             RegisterFfmpeg(ffmpeg);
@@ -447,23 +449,25 @@ namespace FAIC
         }
         public async Task EncodeAVIF(EncodeSettings settings, CancellationToken token)
         {
-            string repetition = settings.Repeats < 0 ? "infinite" : (settings.Repeats + 1).ToString();
-            string arguments = $"--stdin --jobs all -q {Math.Max(settings.Quality, 1)} --repetition-count {repetition} \"{settings.OutputPath}\"";
+            string arguments = "-c:v libaom-av1 ";
 
-            var createAvifenc = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "avifenc.exe"), "avifenc", arguments);
+            int crf = (int)Math.Round((100f - Math.Clamp(settings.Quality, 0, 100)) * 0.63f);
+            int cpuUsed = settings.Tuning switch
+            {
+                EncodeSettings.TuningSetting.Best => 3,
+                EncodeSettings.TuningSetting.Fast or _ => 5
+            };
 
-            try
+            arguments += $"-cpu-used {cpuUsed} " +
+                $"-crf:v:0 {crf} " +
+                "-row-mt 1 ";
+
+            if (settings.Transparent)
             {
-                await EncodeWithFFmpegPipe(settings, createAvifenc, token, pixfmt: settings.Transparent ? "yuva444p" : "yuv444p");
+                arguments += "-crf:v:1 0 -tune:v:1 psnr "; //Temp just forcing perfect alpha quality
             }
-            catch (Exception e)
-            {
-                TryOutput(e.Message, ConsoleMessageType.Error);
-            }
-            finally
-            {
-                TryOutput("Complete!", ConsoleMessageType.Success);
-            }
+
+            await EncodeWithFFmpeg(settings, arguments, token, "", alphaInSecondStream: settings.Transparent);
         }
         public async Task EncodeWebP(EncodeSettings settings, CancellationToken token)
         {
