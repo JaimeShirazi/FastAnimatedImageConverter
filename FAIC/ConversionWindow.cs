@@ -312,11 +312,11 @@ namespace FAIC
 
             return process;
         }
-        private async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt)
+        private async Task EncodeWithFFmpegPipe(EncodeSettings settings, Func<(bool redirectStdin, bool redirectStdout), Process> createReceiver, CancellationToken token, string pixfmt = "rgba", string format = "rawvideo")
         {
             string arguments = settings.GetFFmpegArguments() +
                         $"-threads 0 -pix_fmt {pixfmt} -strict -1 " +
-                        "-f yuv4mpegpipe -";
+                        $"-f {format} -";
 
             Process ffmpeg = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "ffmpeg", arguments).Invoke((false, true));
             RegisterFfmpeg(ffmpeg);
@@ -550,92 +550,34 @@ namespace FAIC
                 }
             }
 
-            string repetition = "--repeat " + settings.Repeats switch
-            {
-                < 0 => 0, //forever = 0
-                0 => -1, //-1 = once
-                _ => settings.Repeats
-            } + " ";
-
-            string arguments = $"-Q {Math.Max(settings.Quality, 1)} {repetition}--width={settings.OutputWidth} --height={settings.OutputHeight} ";
-            if (settings.Transparent) arguments += $"-r {settings.TargetFrameRate} ";
-            arguments += $"-o \"{settings.OutputPath}\" ";
-
-            string transparentTempFramesDirectory = Path.Combine(Path.GetTempPath(), "FAIC_" + Guid.NewGuid().ToString("N"));
+            string arguments = $"-Q {Math.Max(settings.Quality, 1)} " +
+                $"--repeat {settings.Repeats switch
+                {
+                    < 0 => 0, //forever = 0
+                    0 => -1, //-1 = once
+                    _ => settings.Repeats
+                }} " +
+                /*$"--width={settings.OutputWidth} " +
+                $"--height={settings.OutputHeight} " +*/
+                $"--fps {settings.TargetFrameRate} ";
 
             if (settings.Transparent)
             {
-                arguments += "frame_*.png";
+                arguments += $"--raw-rgba --raw-size {settings.OutputWidth}x{settings.OutputHeight} ";
             }
-            else
-            {
-                arguments += "-"; //trailing - indicates stdin input
-            }
+
+            arguments += $"-o \"{settings.OutputPath}\" -";
 
             var createGifski = PrepareProcess(settings, Path.Combine(AppContext.BaseDirectory, "gifski.exe"), "gifski", arguments);
 
-            if (settings.Transparent)
+            try
             {
-                int expectedFrames = (int)Math.Ceiling(settings.InputFormat == InputFormat.Concat
-                    ? settings.ExpectedLength * settings.TargetFrameRate
-                    : settings.ExpectedLength / settings.TargetFrameRate
-                    );
-
-                int frameDigits = (int)Math.Floor(Math.Log10(expectedFrames)) + 1;
-
-                try
-                {
-                    Directory.CreateDirectory(transparentTempFramesDirectory);
-
-                    //TODO: NOW THAT MULTIPLE ENCODES CAN HAPPEN SIMULTANEOUSLY, THERE NEEDS TO BE UNIQUE FRAME CACHES
-                    await EncodeWithFFmpeg(settings, "", token, outputPath: Path.Combine(transparentTempFramesDirectory, $"frame_%0{frameDigits}d.png"), suppressComplete: true);
-
-                    TryOutput("Done preparing frames.", ConsoleMessageType.Progress);
-
-                    Process gifski = createGifski.Invoke((false, false));
-                    gifski.StartInfo.WorkingDirectory = transparentTempFramesDirectory;
-
-                    gifski.Start();
-
-                    gifski.BeginErrorReadLine();
-
-                    using var registration = token.Register(() =>
-                    {
-                        try
-                        {
-                            if (!gifski.HasExited)
-                                gifski.Kill(entireProcessTree: true);
-                        }
-                        catch { }
-                    });
-
-                    await gifski.WaitForExitAsync(token);
-                }
-                catch (OperationCanceledException)
-                {
-                    TryOutput("Encode cancelled by user.", ConsoleMessageType.Error);
-                }
-                finally
-                {
-                    if (Directory.Exists(transparentTempFramesDirectory))
-                    {
-                        TryOutput("Cleaning up temporary files...", ConsoleMessageType.Progress);
-                        Directory.Delete(transparentTempFramesDirectory, recursive: true);
-                    }
-                    TryOutput("Complete!", ConsoleMessageType.Success);
-                }
+                await EncodeWithFFmpegPipe(settings, createGifski, token, pixfmt: settings.Transparent ? "rgba" : "yuv444p", format: settings.Transparent ? "rawvideo" : "yuv4mpegpipe");
             }
-            else
+            catch { }
+            finally
             {
-                try
-                {
-                    await EncodeWithFFmpegPipe(settings, createGifski, token, "yuv444p");
-                }
-                catch { }
-                finally
-                {
-                    TryOutput("Complete!", ConsoleMessageType.Success);
-                }
+                TryOutput("Complete!", ConsoleMessageType.Success);
             }
         }
         #endregion

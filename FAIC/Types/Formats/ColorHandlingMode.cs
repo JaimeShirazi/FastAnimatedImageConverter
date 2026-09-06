@@ -32,7 +32,7 @@
                     OutputCodec.JXL => transparent ? PixelFormat.rgba : PixelFormat.rgb24,
                     OutputCodec.APNG => transparent ? PixelFormat.rgba : PixelFormat.rgb24,
                     OutputCodec.WEBP => PixelFormat.bgra,
-                    OutputCodec.GIF => PixelFormat.yuv444p, //Use a less lossy transfer format so gifski has a higher quality source to crush
+                    OutputCodec.GIF => transparent ? PixelFormat.rgba : PixelFormat.yuv444p,
                     _ => throw new System.NotImplementedException("No pixel format defined for output codec.")
                 },
             };
